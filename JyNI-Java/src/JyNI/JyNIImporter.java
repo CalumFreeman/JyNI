@@ -161,7 +161,7 @@ public class JyNIImporter extends PyObject {
 				PyModule config_util = (PyModule) imp.load("config_util");
 				PyModule python_home_winreg = (PyModule) imp.load("python_home_winreg");
 				PyObject pyHome = python_home_winreg.__findattr__("python_home").__call__();
-				PySystemState.prefix = new PyShadowString(PySystemState.prefix, pyHome.toString());
+				PySystemState.prefix = new PyShadowString(PySystemState.prefix.toString(), pyHome.toString());
 				((PyShadowString) PySystemState.prefix).addTarget("FixTk.*", null);
 				config_util.__findattr__("_monkeypatch_os_path_for_Tk").__call__(pyHome);
 			} catch (Exception exc) {
