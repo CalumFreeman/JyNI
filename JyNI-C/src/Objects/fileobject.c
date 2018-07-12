@@ -118,8 +118,17 @@ PyFile_AsFile(PyObject *f)
 		jputs("PyFile_AsFile with NULL-pointer");
 	f2 = JyNI_JythonPyObject_FromPyObject(f);
 	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, f2);
-	// TODO get mode from PyFile
-	return fdopen(fd, "r");
+	//jputs(fd);
+	jclass f2Class = (*env)->GetObjectClass(env, f2);
+	// get the fieldID of mode in the java file class then use it to get the mode
+	jfieldID modeFieldID = (*env)->GetFieldID(env, f2Class, "mode", "Ljava/lang/String;");
+	//printf("hello");
+	jstring jmode = (*env)->GetObjectField(env, f2, modeFieldID);
+	const char *cmode = (*env)->GetStringUTFChars(env, jmode, 0);
+	//printf(cmode);
+	FILE *cFile = fdopen((int)fd, cmode);
+	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
+	return cFile;
 }
 
 /*
