@@ -111,27 +111,26 @@ extern "C" {
 FILE *
 PyFile_AsFile(PyObject *f)
 {
+	// set up variables and error check
 	jobject jfile;
 	jint fd;
+	jstring jmode;
+	FILE *cFile;
+	char *cmode;
 	env(-1);
 	if (f == NULL)
 		jputs("PyFile_AsFile with NULL-pointer");
+
 	// get the file as a jythonPyObject
 	jfile = JyNI_JythonPyObject_FromPyObject(f);
-	// get the file descriptor of the file
-	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
-	//get the class of jfile
-	jclass jfileClass = (*env)->GetObjectClass(env, jfile);
 
-	// get the fieldID of mode in the class of jfile
-	jfieldID modeFieldID = (*env)->GetFieldID(env, jfileClass, "mode", "Ljava/lang/String;");
-	// get the fileIO mode as a jstring
-	jstring jmode = (*env)->GetObjectField(env, jfile, modeFieldID);
-	// convert the mode to a char *
-	const char *cmode = (*env)->GetStringUTFChars(env, jmode, 0);
-	// open the file using the file descriptor and the mode
-	FILE *cFile = fdopen((int)fd, cmode);
-	// release the string so that it doesn't stay in memory
+	// get the file descriptor and mode of the file
+	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
+	jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
+
+	// convert the mode to a c char * open the file and then release the string so it doesn't stay in memory
+	cmode = (*env)->GetStringUTFChars(env, jmode, 0);
+	cFile = fdopen((int)fd, cmode);
 	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
 
 	// return the file

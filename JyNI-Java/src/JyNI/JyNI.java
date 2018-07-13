@@ -1277,6 +1277,11 @@ public class JyNI {
 			System.out.println("Warning: JyNI will crash now because fileno is no FileIO");
 		return ((PyInteger)((FileIO)fileno).__int__()).getValue();
 	}
+	
+	public static String PyFile_mode(PyObject fileo) {
+		PyFile file = (PyFile)fileo;
+		return file.mode;
+	}
 
 	/**
 	 * a variant of the builtin type() constructor producing a type

@@ -143,6 +143,7 @@ jmethodID JyNI_getJythonGlobals;
 jmethodID JyNI_getJythonFrame;
 jmethodID JyNI_getPlatform;
 jmethodID JyNI_PyFile_fd;
+jmethodID JyNI_PyFile_mode;
 
 jclass JyTStateClass;
 jmethodID JyTState_setRecursionLimit;
@@ -789,6 +790,7 @@ inline jint initJyNI(JNIEnv *env)
 	JNI_METH_STATIC(JyNI, getJythonFrame, pyFrame)
 	JNI_METH_STATIC(JyNI, getPlatform, string)
 	JNI_METH_STATIC(JyNI, PyFile_fd, int, pyObject)
+	JNI_METH_STATIC(JyNI, PyFile_mode, string, pyObject)
 
 	//Error stuff:
 	JNI_METH_STATIC(JyNI, JyErr_InsertCurExc, void,
