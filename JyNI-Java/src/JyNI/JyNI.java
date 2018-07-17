@@ -1282,6 +1282,13 @@ public class JyNI {
 		PyFile file = (PyFile)fileo;
 		return file.mode;
 	}
+	
+	public static String PyFile_name(PyObject fileo) {
+		PyFile file = (PyFile)fileo;
+		PyObject pname = file.name;
+		String out = pname.toString();
+		return out;
+	}
 
 	/**
 	 * a variant of the builtin type() constructor producing a type
