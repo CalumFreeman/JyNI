@@ -713,30 +713,57 @@ file_dealloc(PyFileObject *f)
     Py_TYPE(f)->tp_free((PyObject *)f);
 }
 
+*/
 static PyObject *
 file_repr(PyFileObject *f)
 {
-    if (PyUnicode_Check(f->f_name)) {
+	// TODO memory management...
+	env(-1);
+	jobject jfile;
+	jstring jmode;
+	PyObject *f_name;
+	PyObject *f_mode;
+	FILE *f_fp;
+
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
+
+	f_name = PyFile_Name(f);
+
+	const char *cmode = (*env)->GetStringUTFChars(env, jmode, 0);
+	f_mode = Py_BuildValue("s", cmode);
+	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
+
+	// TODO I don't think this will actually work as intended. The fp is used to check if the file is open or closed and this won't do that.
+	f_fp = PyFile_AsFile(f);
+
+	PyObject *ret = NULL;
+    if (PyUnicode_Check(f_name)) {
 #ifdef Py_USING_UNICODE
-        PyObject *ret = NULL;
-        PyObject *name = PyUnicode_AsUnicodeEscapeString(f->f_name);
+        PyObject *name = PyUnicode_AsUnicodeEscapeString(f_name);
         const char *name_str = name ? PyString_AsString(name) : "?";
         ret = PyString_FromFormat("<%s file u'%s', mode '%s' at %p>",
-                           f->f_fp == NULL ? "closed" : "open",
+                           f_fp == NULL ? "closed" : "open",
                            name_str,
-                           PyString_AsString(f->f_mode),
+                           PyString_AsString(f_mode),
                            f);
         Py_XDECREF(name);
+        Py_XDECREF(f_name);
+        Py_XDECREF(f_mode);
         return ret;
 #endif
     } else {
-        return PyString_FromFormat("<%s file '%s', mode '%s' at %p>",
-                           f->f_fp == NULL ? "closed" : "open",
-                           PyString_AsString(f->f_name),
-                           PyString_AsString(f->f_mode),
+        ret = PyString_FromFormat("<%s file '%s', mode '%s' at %p>",
+                           f_fp == NULL ? "closed" : "open",
+                           PyString_AsString(f_name),
+                           PyString_AsString(f_mode),
                            f);
+        Py_XDECREF(f_name);
+        Py_XDECREF(f_mode);
+        return ret;
     }
 }
+/*
 
 static PyObject *
 file_close(PyFileObject *f)
