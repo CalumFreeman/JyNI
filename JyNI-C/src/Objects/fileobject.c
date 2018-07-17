@@ -118,8 +118,10 @@ PyFile_AsFile(PyObject *f)
 	FILE *cFile;
 	char *cmode;
 	env(-1);
-	if (f == NULL)
+	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
+		return NULL;
+	}
 
 	// get the file as a jythonPyObject
 	jfile = JyNI_JythonPyObject_FromPyObject(f);
@@ -148,7 +150,6 @@ void PyFile_DecUseCount(PyFileObject *fobj)
     fobj->unlocked_count--;
     assert(fobj->unlocked_count >= 0);
 }
-
 */
 PyObject *
 PyFile_Name(PyObject *f)
@@ -179,7 +180,6 @@ PyFile_Name(PyObject *f)
 }
 
 /*
-
 // This is a safe wrapper around PyObject_Print to print to the FILE
 // of a PyFileObject. PyObject_Print releases the GIL but knows nothing
 // about PyFileObject.
@@ -2480,37 +2480,37 @@ PyTypeObject PyFile_Type = {
     sizeof(PyFileObject),
     0,
     0,                   // tp_dealloc
-    0,                                          // tp_print
-    0,                                          // tp_getattr
-    0,                                          // tp_setattr
-    0,                                          // tp_compare
-    0,                        // tp_repr
-    0,                                          // tp_as_number
-    0,                                          // tp_as_sequence
-    0,                                          // tp_as_mapping
-    0,                                          // tp_hash
-    0,                                          // tp_call
-    0,                                          // tp_str
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+	(reprfunc)file_repr,                        // tp_repr
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
     0,                    // tp_getattro
     // softspace is writable:  we must supply tp_setattro
     0,                    // tp_setattro
-    0,                                          // tp_as_buffer
+    0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_WEAKREFS, // tp_flags
-    file_doc,                                   // tp_doc
-    0,                                          // tp_traverse
-    0,                                          // tp_clear
-    0,                                          // tp_richcompare
+    file_doc,                                   /* tp_doc */
+    0,                                          /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
     0,        // tp_weaklistoffset
     0,                     // tp_iter
     0,                // tp_iternext
     0,                               // tp_methods
     0,                            // tp_members
     0,                            // tp_getset
-    0,                                          // tp_base
-    0,                                          // tp_dict
-    0,                                          // tp_descr_get
-    0,                                          // tp_descr_set
-    0,                                          // tp_dictoffset
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
     0,                                  // tp_init
     0,                        // tp_alloc
     0,                                   // tp_new
@@ -2672,11 +2672,12 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
 int
 PyFile_WriteString(const char *s, PyObject *f)
 {
-	if (f == NULL)
-		puts("PyFile_WriteString with NULL-pointer");
-	else {
+	env(-1);
+	if (f == NULL) {
+		jputs("PyFile_WriteString with NULL-pointer");
+		return -1;
+	} else {
 		jobject f2 = JyNI_JythonPyObject_FromPyObject(f);
-		env(-1);
 		//(*env)->CallVoidMethod(env, ((JyObject*) f)->jy, pyFileWrite, (*env)->NewStringUTF(env, s));
 		(*env)->CallVoidMethod(env, f2, pyFile_write, (*env)->NewStringUTF(env, s));
 		//todo: JNI Exception handling
