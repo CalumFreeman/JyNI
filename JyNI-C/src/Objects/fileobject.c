@@ -122,7 +122,7 @@ PyFile_AsFile(PyObject *f)
 		jputs("PyFile_AsFile with NULL-pointer");
 		return NULL;
 	}
-
+	if(!(is_file_open(f))) return NULL; // NULL seems to be what functions expect to get when a file is closed
 	// get the file as a jythonPyObject
 	jfile = JyNI_JythonPyObject_FromPyObject(f);
 
@@ -177,6 +177,19 @@ PyFile_Name(PyObject *f)
 
 	// return the file
 	return pname;
+}
+
+int is_file_open(PyObject *f)
+{
+	// returns 1(true)/0(false) depending on whether the file is open or not. Use call into java to get this (file.fileno().__tojava__(FileIO.class)
+	env(-1);
+	if (f == NULL){
+		jputs("PyFile_AsFile with NULL-pointer");
+		return NULL;
+	}
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jint open = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_is_file_open, jfile);
+	return (int)open;
 }
 
 /*
@@ -546,6 +559,7 @@ close_the_file(PyFileObject *f)
     Py_RETURN_NONE;
 }
 
+// I expect this will be useful: JyNI_PyObject_FromJythonPyObject
 PyObject *
 PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
 {
