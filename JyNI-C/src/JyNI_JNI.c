@@ -449,6 +449,7 @@ jmethodID pyCodecs_register_error;
 jclass pyFileClass;
 jmethodID pyFile_write;
 jmethodID pyFile_fileno;
+jfieldID pyFile_modeField;
 
 jclass FileIOClass;
 jmethodID FileIO___int__;
@@ -1112,6 +1113,7 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_CLASS(pyFile)
 	JNI_METH_CLASS(pyFile, write, void, string)
 	JNI_METH_CLASS(pyFile, fileno, pyObject)
+	JNI_FIELD(pyFile, mode, string)
 
 	JNI_CLASS(pyModule)
 	JNI_CONSTRUCTOR(pyModule, byStringConstructor, string)

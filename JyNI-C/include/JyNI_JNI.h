@@ -510,6 +510,7 @@ extern jmethodID pyInstance_isSequenceType;
 extern jclass pyFileClass;
 extern jmethodID pyFile_write;
 extern jmethodID pyFile_fileno;
+extern jfieldID pyFile_modeField;
 
 
 extern jclass FileIOClass;

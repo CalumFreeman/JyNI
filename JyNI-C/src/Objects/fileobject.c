@@ -128,7 +128,8 @@ PyFile_AsFile(PyObject *f)
 
 	// get the file descriptor and mode of the file
 	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
-	jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
+	jmode = (*env)->GetObjectField(env, jfile, pyFile_modeField);
+	// jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
 
 	// convert the mode to a c char * open the file and then release the string so it doesn't stay in memory
 	cmode = (*env)->GetStringUTFChars(env, jmode, 0);
@@ -514,6 +515,7 @@ cleanup:
 static PyObject *
 close_the_file(PyFileObject *f)
 {
+	// PyFile.close() ? seems a bit to simple...
     int sts = 0;
     int (*local_close)(FILE *);
     FILE *local_fp = f->f_fp;
@@ -748,7 +750,6 @@ file_repr(PyFileObject *f)
 	f_mode = Py_BuildValue("s", cmode);
 	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
 
-	// TODO I don't think this will actually work as intended. The fp is used to check if the file is open or closed and this won't do that.
 	f_fp = PyFile_AsFile(f);
 
 	PyObject *ret = NULL;
