@@ -447,6 +447,12 @@ jmethodID pyCodecs_lookup_error;
 jmethodID pyCodecs_register_error;
 
 jclass pyFileClass;
+jmethodID pyFile_file___init__;
+jmethodID pyFile___iternext__;
+jmethodID pyFile_getClosed;
+jmethodID pyFile_getNewLines;
+jmethodID pyFile_getSoftspace;
+jmethodID pyFile_setSoftspace;
 jmethodID pyFile_write;
 jmethodID pyFile_fileno;
 jfieldID pyFile_modeField;
@@ -1111,6 +1117,12 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_CLASS(pyNotImplemented)
 
 	JNI_CLASS(pyFile)
+	JNI_METH_CLASS(pyFile, file___init__, void, pyObject array, string array)
+	JNI_METH_CLASS(pyFile, __iternext__, pyObject)
+	JNI_METH_CLASS(pyFile, getClosed, boolean)
+	JNI_METH_CLASS(pyFile, getNewLines, pyObject)
+	JNI_METH_CLASS(pyFile, getSoftspace, pyObject)
+	JNI_METH_CLASS(pyFile, setSoftspace, void, pyObject)
 	JNI_METH_CLASS(pyFile, write, void, string)
 	JNI_METH_CLASS(pyFile, fileno, pyObject)
 	JNI_FIELD(pyFile, mode, string)

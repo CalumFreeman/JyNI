@@ -2042,16 +2042,16 @@ file_writelines(PyFileObject *f, PyObject *seq)
     return result;
 #undef CHUNKSIZE
 }
-
+*/
 static PyObject *
 file_self(PyFileObject *f)
 {
-    if (f->f_fp == NULL)
+    if (!is_file_open(f))
         return err_closed();
     Py_INCREF(f);
     return (PyObject *)f;
 }
-
+/*
 static PyObject *
 file_xreadlines(PyFileObject *f)
 {
@@ -2201,67 +2201,41 @@ static PyMemberDef file_memberlist[] = {
     // getattr(f, "closed") is implemented without this table
     {NULL}      // Sentinel
 };
-
+*/
 static PyObject *
 get_closed(PyFileObject *f, void *closure)
 {
-    return PyBool_FromLong((long)(f->f_fp == 0));
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jboolean jclosed = (*env)->CallBooleanMethod(env, jfile, pyFile_getClosed);
+	int cClosed = (int)jclosed;//TODO may break since casting from bool to int, who knows!
+	return PyBool_FromInt(cClosed);
 }
 static PyObject *
 get_newlines(PyFileObject *f, void *closure)
 {
-    switch (f->f_newlinetypes) {
-    case NEWLINE_UNKNOWN:
-        Py_INCREF(Py_None);
-        return Py_None;
-    case NEWLINE_CR:
-        return PyString_FromString("\r");
-    case NEWLINE_LF:
-        return PyString_FromString("\n");
-    case NEWLINE_CR|NEWLINE_LF:
-        return Py_BuildValue("(ss)", "\r", "\n");
-    case NEWLINE_CRLF:
-        return PyString_FromString("\r\n");
-    case NEWLINE_CR|NEWLINE_CRLF:
-        return Py_BuildValue("(ss)", "\r", "\r\n");
-    case NEWLINE_LF|NEWLINE_CRLF:
-        return Py_BuildValue("(ss)", "\n", "\r\n");
-    case NEWLINE_CR|NEWLINE_LF|NEWLINE_CRLF:
-        return Py_BuildValue("(sss)", "\r", "\n", "\r\n");
-    default:
-        PyErr_Format(PyExc_SystemError,
-                     "Unknown newlines value 0x%x\n",
-                     f->f_newlinetypes);
-        return NULL;
-    }
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jobject jobj = (*env)->CallObjectMethod(env, jfile, pyFile_getNewLines);
+	return JyNI_JythonPyObject_AsPyObject(jobj);
 }
 
 static PyObject *
 get_softspace(PyFileObject *f, void *closure)
 {
-    if (PyErr_WarnPy3k("file.softspace not supported in 3.x", 1) < 0)
-        return NULL;
-    return PyInt_FromLong(f->f_softspace);
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jobject jobj = (*env)->CallObjectMethod(env, jfile, pyFile_getSoftspace);
+	return JyNI_JythonPyObject_AsPyObject(jobj);
 }
 
 static int
 set_softspace(PyFileObject *f, PyObject *value)
 {
-    int new;
-    if (PyErr_WarnPy3k("file.softspace not supported in 3.x", 1) < 0)
-        return -1;
-
-    if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError,
-                        "can't delete softspace attribute");
-        return -1;
-    }
-
-    new = PyInt_AsLong(value);
-    if (new == -1 && PyErr_Occurred())
-        return -1;
-    f->f_softspace = new;
-    return 0;
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	(*env)->CallVoidMethod(env, jfile, pyFile_setSoftspace);
+	return 0;
 }
 
 static PyGetSetDef file_getsetlist[] = {
@@ -2272,7 +2246,7 @@ static PyGetSetDef file_getsetlist[] = {
      "flag indicating that a space needs to be printed; used by print"},
     {0},
 };
-
+/*
 static void
 drop_readahead(PyFileObject *f)
 {
@@ -2370,25 +2344,17 @@ readahead_get_line_skip(PyFileObject *f, int skip, int bufsize)
 
 // A larger buffer size may actually decrease performance.
 #define READAHEAD_BUFSIZE 8192
-
+*/
 static PyObject *
 file_iternext(PyFileObject *f)
 {
-    PyStringObject* l;
-
-    if (f->f_fp == NULL)
-        return err_closed();
-    if (!f->readable)
-        return err_mode("reading");
-
-    l = readahead_get_line_skip(f, 0, READAHEAD_BUFSIZE);
-    if (l == NULL || PyString_GET_SIZE(l) == 0) {
-        Py_XDECREF(l);
-        return NULL;
-    }
-    return (PyObject *)l;
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jobject jIterNext =(*env)->CallObjectMethod(env, jfile, pyFile___iternext__);
+	PyObject* pyIterNext = JyNI_JythonPyObject_AsPyObject(jIterNext);
+	return pyIterNext;
 }
-
+/*
 
 static PyObject *
 file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -2543,11 +2509,11 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,        // tp_weaklistoffset
-    0,                     // tp_iter
-    0,                // tp_iternext
+	(getiterfunc)file_self,                     // tp_iter
+	(iternextfunc)file_iternext,                // tp_iternext
     0,                               // tp_methods
     0,                            // tp_members
-    0,                            // tp_getset
+	file_getsetlist,                            // tp_getset
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
@@ -2725,37 +2691,6 @@ PyFile_WriteString(const char *s, PyObject *f)
 		//todo: JNI Exception handling
 		return 0;
 	}
-
-    /*if (f == NULL) {
-        // Should be caused by a pre-existing error
-        if (!PyErr_Occurred())
-            PyErr_SetString(PyExc_SystemError,
-                            "null file for PyFile_WriteString");
-        return -1;
-    }
-    else if (PyFile_Check(f)) {
-        PyFileObject *fobj = (PyFileObject *) f;
-        FILE *fp = PyFile_AsFile(f);
-        if (fp == NULL) {
-            err_closed();
-            return -1;
-        }
-        FILE_BEGIN_ALLOW_THREADS(fobj)
-        fputs(s, fp);
-        FILE_END_ALLOW_THREADS(fobj)
-        return 0;
-    }
-    else if (!PyErr_Occurred()) {
-        PyObject *v = PyString_FromString(s);
-        int err;
-        if (v == NULL)
-            return -1;
-        err = PyFile_WriteObject(v, f, Py_PRINT_RAW);
-        Py_DECREF(v);
-        return err;
-    }
-    else
-        return -1;*/
 }
 
 // Try to get a file-descriptor from a Python object.  If the object
