@@ -508,6 +508,7 @@ extern jfieldID pyInstance___dict__Field;
 extern jmethodID pyInstance_isSequenceType;
 
 extern jclass pyFileClass;
+extern jmethodID pyFile_Constructor;
 extern jmethodID pyFile_file___init__;
 extern jmethodID pyFile___iternext__;
 extern jmethodID pyFile_getClosed;

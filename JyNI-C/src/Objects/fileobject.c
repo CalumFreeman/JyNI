@@ -2354,11 +2354,18 @@ file_iternext(PyFileObject *f)
 	PyObject* pyIterNext = JyNI_JythonPyObject_AsPyObject(jIterNext);
 	return pyIterNext;
 }
-/*
+
 
 static PyObject *
 file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+	env(NULL);
+	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_Constructor);
+	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
+	return pfile;
+}
+/*
+	// Basically call constructor PyFile() and return it as a PyObj, file_init should then call it's file___init__ method somehow?
     PyObject *self;
     static PyObject *not_yet_string;
 
@@ -2532,7 +2539,7 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_dictoffset */
 	file_init,                                  // tp_init
     0,                        // tp_alloc
-    0,                                   // tp_new
+    file_new,                                   // tp_new
     0,                           // tp_free
 };
 

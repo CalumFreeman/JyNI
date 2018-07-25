@@ -447,6 +447,7 @@ jmethodID pyCodecs_lookup_error;
 jmethodID pyCodecs_register_error;
 
 jclass pyFileClass;
+jmethodID pyFile_Constructor;
 jmethodID pyFile_file___init__;
 jmethodID pyFile___iternext__;
 jmethodID pyFile_getClosed;
@@ -1117,6 +1118,7 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_CLASS(pyNotImplemented)
 
 	JNI_CLASS(pyFile)
+	JNI_CONSTRUCTOR(pyFile, Constructor, arg1TypeEtc)
 	JNI_METH_CLASS(pyFile, file___init__, void, pyObject array, string array)
 	JNI_METH_CLASS(pyFile, __iternext__, pyObject)
 	JNI_METH_CLASS(pyFile, getClosed, boolean)
