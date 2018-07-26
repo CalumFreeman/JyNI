@@ -627,10 +627,13 @@ PyFile_FromString(char *name, char *mode)
     }
     return (PyObject *)f;
 }
-
+*/
 void
 PyFile_SetBufSize(PyObject *f, int bufsize)
 {
+	// I don't think this needs to do anything since the buffer size is set in java on file creation and this should only be used immediately after creating a file.
+	// There also doesn't appear to be an obvious way to set buffer size in java after creating the file.
+}/*
     PyFileObject *file = (PyFileObject *)f;
     if (bufsize >= 0) {
         int type;
@@ -2559,7 +2562,12 @@ PyDoc_STR(
 "\n"
 "'U' cannot be combined with 'w' or '+' mode.\n"
 );
-
+// TODO PyFile_IncUseCount
+// TODO PyFile_DecUseCount
+// TODO PyFile_WriteObject
+// TODO tp_dealloc
+// TODO tp_alloc
+// TODO tp_free
 //empty dummy-type  -- todo: cleanup/implement
 PyTypeObject PyFile_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
