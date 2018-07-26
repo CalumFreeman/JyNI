@@ -107,14 +107,14 @@ extern "C" {
 #define CallJavaMethodARGS(ClassName, MethodName, ObjectName, ...) jobject jobj = JyNI_JythonPyObject_FromPyObject(ObjectName); \
 env(NULL);\
 jobject jres = (*env)->CallObjectMethod(env, jobj, ClassName ## _ ## MethodName, __VA_ARGS__ );\
-return JyNI_JythonPyObject_AsPyObject(jres)
+PyObject *res = JyNI_JythonPyObject_AsPyObject(jres)
 
 #define CallJavaA(X, ...) CallJavaMethodARGS(pyFile, X, f, __VA_ARGS__)
 
 #define CallJavaMethod(ClassName, MethodName, ObjectName) jobject jobj = JyNI_JythonPyObject_FromPyObject(ObjectName); \
 env(NULL);\
 jobject jres = (*env)->CallObjectMethod(env, jobj, ClassName ## _ ## MethodName);\
-return JyNI_JythonPyObject_AsPyObject(jres)
+PyObject *res = JyNI_JythonPyObject_AsPyObject(jres)
 
 #define CallJava(X) CallJavaMethod(pyFile, X, f)
 /*
@@ -669,7 +669,7 @@ PyFile_SetBufSize(PyObject *f, int bufsize)
 
 // Set the encoding used to output Unicode strings.
 // Return 1 on success, 0 on failure.
-
+*/
 int
 PyFile_SetEncoding(PyObject *f, const char *enc)
 {
@@ -679,6 +679,11 @@ PyFile_SetEncoding(PyObject *f, const char *enc)
 int
 PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* errors)
 {
+	// call PyFile.setEncoding
+	CallJavaA(setEncoding, enc, errors);
+	return 0;
+}
+/*
     PyFileObject *file = (PyFileObject*)f;
     PyObject *str, *oerrors;
 
@@ -760,6 +765,7 @@ static PyObject *
 file_repr(PyFileObject *f)
 {
 	CallJava(file_toString);
+	return res;
 	// TODO memory management...
 //	env(-1);
 //	jobject jfile;
@@ -811,6 +817,7 @@ static PyObject *
 file_close(PyFileObject *f)
 {
 	CallJava(file_close);
+	return NULL; //I don't know what this is meant to return
 //    PyObject *sts = close_the_file(f);
 //    if (sts) {
 //        PyMem_Free(f->f_setbuf);
@@ -901,6 +908,7 @@ static PyObject *
 file_seek(PyFileObject *f, PyObject *args)
 {
 	CallJava(file_seek);
+	return res;
 //    int whence;
 //    int ret;
 //    Py_off_t offset;
@@ -1068,6 +1076,7 @@ static PyObject *
 file_tell(PyFileObject *f)
 {
 	CallJava(file_tell);
+	return res;
 //    Py_off_t pos;
 //
 //    if (f->f_fp == NULL)
@@ -1102,6 +1111,7 @@ static PyObject *
 file_fileno(PyFileObject *f)
 {
 	CallJava(file_fileno);
+	return res;
 //    if (f->f_fp == NULL)
 //        return err_closed();
 //    return PyInt_FromLong((long) fileno(f->f_fp));
@@ -1111,6 +1121,7 @@ static PyObject *
 file_flush(PyFileObject *f)
 {
 	CallJava(file_flush);
+	return res;
 //    int res;
 //
 //    if (f->f_fp == NULL)
@@ -1132,6 +1143,7 @@ static PyObject *
 file_isatty(PyFileObject *f)
 {
 	CallJava(file_isatty);
+	return res;
 //    long res;
 //    if (f->f_fp == NULL)
 //        return err_closed();
@@ -1200,6 +1212,7 @@ static PyObject *
 file_read(PyFileObject *f, PyObject *args)
 {
 	CallJava(file_read);
+	return res;
 //    long bytesrequested = -1;
 //    size_t bytesread, buffersize, chunksize;
 //    PyObject *v;
@@ -1271,6 +1284,7 @@ static PyObject *
 file_readinto(PyFileObject *f, PyObject *args)
 {
 	CallJava(file_readinto);
+	return res;
 //    char *ptr;
 //    Py_ssize_t ntodo;
 //    Py_ssize_t ndone, nnow;
@@ -1741,6 +1755,7 @@ file_readline(PyFileObject *f, PyObject *args)
 {
 	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
 	CallJavaA(file_readline, args);
+	return res;
 //    int n = -1;
 //
 //    if (f->f_fp == NULL)
@@ -1766,6 +1781,7 @@ file_readlines(PyFileObject *f, PyObject *args)
 {
 	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
 	CallJavaA(file_readlines, jargs);
+	return res;
 //    long sizehint = 0;
 //    PyObject *list = NULL;
 //    PyObject *line;
@@ -1899,6 +1915,7 @@ file_write(PyFileObject *f, PyObject *args)
 {
 	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
 	CallJavaA(file_write, jargs);
+	return res;
 //    Py_buffer pbuf;
 //    const char *s;
 //    Py_ssize_t n, n2;
@@ -1964,6 +1981,7 @@ file_writelines(PyFileObject *f, PyObject *seq)
 {
 	jobject jseq = JyNI_JythonPyObject_FromPyObject(seq);
 	CallJavaA(file_writelines, jseq);
+	return res;
 //#define CHUNKSIZE 1000
 //    PyObject *list, *line;
 //    PyObject *it;       // iter(seq)
@@ -2260,12 +2278,14 @@ static PyObject *
 get_newlines(PyFileObject *f, void *closure)
 {
 	CallJava(getNewLines);
+	return res;
 }
 
 static PyObject *
 get_softspace(PyFileObject *f, void *closure)
 {
 	CallJava(getSoftspace);
+	return res;
 }
 
 static int
@@ -2273,6 +2293,7 @@ set_softspace(PyFileObject *f, PyObject *value)
 {
 	jobject jvalue = JyNI_JythonPyObject_FromPyObject(value);
 	CallJavaA(setSoftspace, jvalue);
+	return 0;
 }
 
 static PyGetSetDef file_getsetlist[] = {
@@ -2388,6 +2409,7 @@ file_iternext(PyFileObject *f)
 	if (!is_file_open(f))
 	        return err_closed();
 	CallJava(__iternext__);
+	return res;
 }
 
 

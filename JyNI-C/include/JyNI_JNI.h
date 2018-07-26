@@ -510,6 +510,7 @@ extern jmethodID pyInstance_isSequenceType;
 extern jclass pyFileClass;
 extern jmethodID pyFile_Constructor;
 extern jmethodID pyFile_ConstructorStringString;
+extern jmethodID pyFile_setEncoding;
 extern jmethodID pyFile_file___init__;
 extern jmethodID pyFile___iternext__;
 extern jmethodID pyFile_getClosed;
