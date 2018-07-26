@@ -2418,13 +2418,13 @@ file_iternext(PyFileObject *f)
 
 
 //static PyObject *
-//file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
-//{
-//	env(NULL);
-//	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_Constructor);
-//	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
-//	return pfile;
-//}
+file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+	env(NULL);
+	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_Constructor);
+	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
+	return pfile;
+}
 /*
 	// Basically call constructor PyFile() and return it as a PyObj, file_init should then call it's file___init__ method somehow?
     PyObject *self;
@@ -2456,19 +2456,19 @@ file_iternext(PyFileObject *f)
     return self;
 }
 */
-//static int
-//file_init(PyObject *self, PyObject *args, PyObject *kwds)
-//{
-//	jobject jfile = JyNI_JythonPyObject_FromPyObject(self);
-//	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
-//	jobject jkwds = JyNI_JythonPyObject_FromPyObject(kwds);
-//	env(-1);
-//	(*env)->CallVoidMethod(env, jfile, pyFile_file___init__, jargs, jkwds);
-//	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
-//	Py_DECREF(self);
-//	self = pfile;
-//	return 0;
-//}
+static int
+file_init(PyObject *self, PyObject *args, PyObject *kwds)
+{
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(self);
+	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
+	jobject jkwds = JyNI_JythonPyObject_FromPyObject(kwds);
+	env(-1);
+	(*env)->CallVoidMethod(env, jfile, pyFile_file___init__, jargs, jkwds);
+	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
+	Py_DECREF(self);
+	self = pfile;
+	return 0;
+}
 /*
     PyFileObject *foself = (PyFileObject *)self;
     int ret = 0;
@@ -2598,9 +2598,9 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
-	0,//file_init,                                  // tp_init
+	file_init,                                  // tp_init
     0,                        // tp_alloc
-    0,//file_new,                                   // tp_new
+    file_new,                                   // tp_new
     0,                           // tp_free
 };
 
