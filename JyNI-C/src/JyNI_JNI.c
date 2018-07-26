@@ -455,7 +455,21 @@ jmethodID pyFile_getNewLines;
 jmethodID pyFile_getSoftspace;
 jmethodID pyFile_setSoftspace;
 jmethodID pyFile_write;
+jmethodID pyFile_file_writelines;
+jmethodID pyFile_file_self;
 jmethodID pyFile_fileno;
+jmethodID pyFile_file_write;
+jmethodID pyFile_file_readlines;
+jmethodID pyFile_file_readline;
+jmethodID pyFile_file_readinto;
+jmethodID pyFile_file_read;
+jmethodID pyFile_file_isatty;
+jmethodID pyFile_file_flush;
+jmethodID pyFile_file_fileno;
+jmethodID pyFile_file_tell;
+jmethodID pyFile_file_seek;
+jmethodID pyFile_file_close;
+jmethodID pyFile_file_toString;
 jfieldID pyFile_modeField;
 
 jclass FileIOClass;
@@ -1118,7 +1132,21 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_CLASS(pyNotImplemented)
 
 	JNI_CLASS(pyFile)
-	JNI_CONSTRUCTOR(pyFile, Constructor, arg1TypeEtc)
+	JNI_CONSTRUCTOR(pyFile, Constructor)
+	JNI_METH_CLASS(pyFile, file_write, void, string)
+	JNI_METH_CLASS(pyFile, file_writelines, void, pyObject)
+	JNI_METH_CLASS(pyFile, file_self, pyObject)
+	JNI_METH_CLASS(pyFile, file_readlines, pyObject, int)
+	JNI_METH_CLASS(pyFile, file_readlines, pyObject, int)
+	JNI_METH_CLASS(pyFile, file_readinto, int, pyObject)
+	JNI_METH_CLASS(pyFile, file_read, pyObject, int)
+	JNI_METH_CLASS(pyFile, file_isatty, boolean)
+	JNI_METH_CLASS(pyFile, file_flush, void)
+	JNI_METH_CLASS(pyFile, file_fileno, pyObject)
+	JNI_METH_CLASS(pyFile, file_tell, long)
+	JNI_METH_CLASS(pyFile, file_seek, void, long, int)
+	JNI_METH_CLASS(pyFile, file_close, void)
+	JNI_METH_CLASS(pyFile, file_toString, string)
 	JNI_METH_CLASS(pyFile, file___init__, void, pyObject array, string array)
 	JNI_METH_CLASS(pyFile, __iternext__, pyObject)
 	JNI_METH_CLASS(pyFile, getClosed, boolean)

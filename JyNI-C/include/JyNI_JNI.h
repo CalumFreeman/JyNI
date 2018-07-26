@@ -516,7 +516,21 @@ extern jmethodID pyFile_getNewLines;
 extern jmethodID pyFile_getSoftspace;
 extern jmethodID pyFile_setSoftspace;
 extern jmethodID pyFile_write;
+extern jmethodID pyFile_file_writelines;
+extern jmethodID pyFile_file_self;
 extern jmethodID pyFile_fileno;
+extern jmethodID pyFile_file_write;
+extern jmethodID pyFile_file_readlines;
+extern jmethodID pyFile_file_readline;
+extern jmethodID pyFile_file_readinto;
+extern jmethodID pyFile_file_read;
+extern jmethodID pyFile_file_isatty;
+extern jmethodID pyFile_file_flush;
+extern jmethodID pyFile_file_fileno;
+extern jmethodID pyFile_file_tell;
+extern jmethodID pyFile_file_seek;
+extern jmethodID pyFile_file_close;
+extern jmethodID pyFile_file_toString;
 extern jfieldID pyFile_modeField;
 
 
