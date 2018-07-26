@@ -599,10 +599,15 @@ PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
     Py_DECREF(o_name);
     return (PyObject *)f;
 }
-
+*/
 PyObject *
 PyFile_FromString(char *name, char *mode)
 {
+	env(NULL);
+	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_ConstructorStringString, name, mode);
+	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
+	return pfile;
+}/*
     PyFileObject *f;
 
     f = (PyFileObject *)PyFile_FromFile((FILE *)NULL, name, mode, NULL);
