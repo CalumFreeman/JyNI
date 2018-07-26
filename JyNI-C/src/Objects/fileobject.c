@@ -573,11 +573,19 @@ close_the_file(PyFileObject *f)
     }
     Py_RETURN_NONE;
 }
-
+*/
 // I expect this will be useful: JyNI_PyObject_FromJythonPyObject
 PyObject *
 PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
 {
+	PyObject *o_name = PyString_FromString(name);
+	if (o_name == NULL) {
+	        if (close != NULL && fp != NULL)
+	            close(fp);
+	        return NULL;
+	}
+	return PyFile_FromString(name, mode);
+}/*
     PyFileObject *f;
     PyObject *o_name;
 
