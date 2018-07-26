@@ -1650,10 +1650,14 @@ get_line(PyFileObject *f, int n)
 }
 
 // External C interface
-
+*/
 PyObject *
 PyFile_GetLine(PyObject *f, int n)
 {
+	CallJavaA(file_readline, n);
+	return res;
+}
+/*
     PyObject *result;
 
     if (f == NULL) {
@@ -2645,7 +2649,7 @@ PyTypeObject PyFile_Type = {
 };
 
 // Interface for the 'soft space' between print items.
-
+*/
 int
 PyFile_SoftSpace(PyObject *f, int newflag)
 {
@@ -2654,8 +2658,11 @@ PyFile_SoftSpace(PyObject *f, int newflag)
         // Do nothing
     }
     else if (PyFile_Check(f)) {
-        oldflag = ((PyFileObject *)f)->f_softspace;
-        ((PyFileObject *)f)->f_softspace = newflag;
+    	CallJava(getSoftspace);
+        oldflag = res;
+        {// This block exists to allow the reuse of variable names with the macro... sorry
+        	CallJavaA(setSoftspace, newflag);
+        }
     }
     else {
         PyObject *v;
@@ -2678,7 +2685,7 @@ PyFile_SoftSpace(PyObject *f, int newflag)
         }
     }
     return (int)oldflag;
-}
+}/*
 
 // Interfaces to write objects/strings to file-like objects
 
