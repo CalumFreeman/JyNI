@@ -1214,8 +1214,8 @@ file_isatty(PyFileObject *f)
 static PyObject *
 file_read(PyFileObject *f, PyObject *args)
 {
-	CallJava(file_read);
-	return res;
+	//CallJavaA(file_read, -1); return res;
+	return NULL;
 //    long bytesrequested = -1;
 //    size_t bytesread, buffersize, chunksize;
 //    PyObject *v;
@@ -2258,7 +2258,7 @@ static PyMethodDef file_methods[] = {
 };
 
 #define OFF(x) offsetof(PyFileObject, x)
-
+// TODO this won't work as is...
 static PyMemberDef file_memberlist[] = {
     {"mode",            T_OBJECT,       OFF(f_mode),    RO,
      "file mode ('r', 'U', 'w', 'a', possibly with 'b' or '+' added)"},
@@ -2284,7 +2284,7 @@ get_closed(PyFileObject *f, void *closure)
 static PyObject *
 get_newlines(PyFileObject *f, void *closure)
 {
-	CallJava(getNewLines);
+	CallJava(getNewlines);
 	return res;
 }
 
@@ -2566,8 +2566,6 @@ PyDoc_STR(
 // TODO PyFile_DecUseCount
 // TODO PyFile_WriteObject
 // TODO tp_dealloc
-// TODO tp_alloc
-// TODO tp_free
 //empty dummy-type  -- todo: cleanup/implement
 PyTypeObject PyFile_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
@@ -2607,9 +2605,9 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
 	file_init,                                  // tp_init
-    0,                        // tp_alloc
+	PyType_GenericAlloc,                        // tp_alloc
     file_new,                                   // tp_new
-    0,                           // tp_free
+	PyObject_Free,//TODO: this may be the wrong thing                           // tp_free
 };
 
 /*
@@ -2792,12 +2790,7 @@ PyFile_WriteString(const char *s, PyObject *f)
 
 int PyObject_AsFileDescriptor(PyObject *o)
 {
-	jputs("JyNI warning: PyObject_AsFileDescriptor not yet implemented.");
-	return -1;
-}
-
-/*
-    int fd;
+	int fd;
     PyObject *meth;
 
     if (PyInt_Check(o)) {
@@ -2842,7 +2835,7 @@ int PyObject_AsFileDescriptor(PyObject *o)
     }
     return fd;
 }
-*/
+
 
 /* From here on we need access to the real fgets and fread */
 #undef fgets

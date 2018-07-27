@@ -453,7 +453,7 @@ jmethodID pyFile_setEncoding;
 jmethodID pyFile_file___init__;
 jmethodID pyFile___iternext__;
 jmethodID pyFile_getClosed;
-jmethodID pyFile_getNewLines;
+jmethodID pyFile_getNewlines;
 jmethodID pyFile_getSoftspace;
 jmethodID pyFile_setSoftspace;
 jmethodID pyFile_write;
@@ -1135,7 +1135,7 @@ inline jint initJythonObjects(JNIEnv *env)
 
 	JNI_CLASS(pyFile)
 	JNI_CONSTRUCTOR(pyFile, Constructor)
-	JNI_CONSTRUCTOR(pyFile, ConstructorStringString, string, string);
+	//JNI_CONSTRUCTOR(pyFile, ConstructorStringString, string, string)
 	JNI_METH_CLASS(pyFile, file_write, void, string)
 	JNI_METH_CLASS(pyFile, setEncoding, void, string, string)
 	JNI_METH_CLASS(pyFile, file_writelines, void, pyObject)
@@ -1143,7 +1143,7 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_METH_CLASS(pyFile, file_readlines, pyObject, int)
 	JNI_METH_CLASS(pyFile, file_readlines, pyObject, int)
 	JNI_METH_CLASS(pyFile, file_readinto, int, pyObject)
-	JNI_METH_CLASS(pyFile, file_read, pyObject, int)
+	//JNI_METH_CLASS(pyFile, file_read, pyObject, int)
 	JNI_METH_CLASS(pyFile, file_isatty, boolean)
 	JNI_METH_CLASS(pyFile, file_flush, void)
 	JNI_METH_CLASS(pyFile, file_fileno, pyObject)
@@ -1154,7 +1154,7 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_METH_CLASS(pyFile, file___init__, void, pyObject array, string array)
 	JNI_METH_CLASS(pyFile, __iternext__, pyObject)
 	JNI_METH_CLASS(pyFile, getClosed, boolean)
-	JNI_METH_CLASS(pyFile, getNewLines, pyObject)
+	JNI_METH_CLASS(pyFile, getNewlines, pyObject)
 	JNI_METH_CLASS(pyFile, getSoftspace, pyObject)
 	JNI_METH_CLASS(pyFile, setSoftspace, void, pyObject)
 	JNI_METH_CLASS(pyFile, write, void, string)

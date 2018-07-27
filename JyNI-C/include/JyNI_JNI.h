@@ -514,7 +514,7 @@ extern jmethodID pyFile_setEncoding;
 extern jmethodID pyFile_file___init__;
 extern jmethodID pyFile___iternext__;
 extern jmethodID pyFile_getClosed;
-extern jmethodID pyFile_getNewLines;
+extern jmethodID pyFile_getNewlines;
 extern jmethodID pyFile_getSoftspace;
 extern jmethodID pyFile_setSoftspace;
 extern jmethodID pyFile_write;
