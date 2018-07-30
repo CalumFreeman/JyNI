@@ -77,8 +77,8 @@ debug: all
 tests: build-tests run-tests
 
 build-tests:
-	@echo 'building tests is not fully supported yet'
-	#python ./DemoExtension/setup.py install
+	@echo 'building tests is not fully supported yet, this will either not work or install the demo extension as an actuall extension'
+	python ./DemoExtension/setup.py install
 	
 run-tests:
 	java -jar $(JYTHON) ./JyNI-Demo/src/test_all.py
