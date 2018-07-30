@@ -71,6 +71,18 @@ all: $(OUTPUTDIR) libJyNI libJyNI-Loader JyNI
 	@echo ''
 	@echo 'Build successful.'
 
+debug: CFLAGS += -g
+debug: all
+
+tests: build-tests run-tests
+
+build-tests:
+	@echo 'building tests is not fully supported yet'
+	#python ./DemoExtension/setup.py install
+	
+run-tests:
+	java -jar $(JYTHON) ./JyNI-Demo/src/test_all.py
+
 $(OUTPUTDIR):
 	mkdir $(OUTPUTDIR)
 
@@ -140,5 +152,5 @@ clean:
 	rm -f ./JyNI-C/src/Modules/*.o
 	rm -f ./JyNI-Loader/JyNILoader.o
 
-.PHONY: JyNI libJyNI libJyNI-Loader clean cleanJ JAVA_HOME_hint all
+.PHONY: JyNI libJyNI libJyNI-Loader clean cleanJ JAVA_HOME_hint all debug tests
 
