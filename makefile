@@ -74,8 +74,14 @@ all: $(OUTPUTDIR) libJyNI libJyNI-Loader JyNI
 debug: CFLAGS += -g
 debug: all
 
-tests:
-	@echo 'Tests have not been implemented yet'
+tests: build-tests run-tests
+
+build-tests:
+	@echo 'building tests is not fully supported yet'
+	#python ./DemoExtension/setup.py install
+	
+run-tests:
+	java -jar $(JYTHON) ./JyNI-Demo/src/test_all.py
 
 $(OUTPUTDIR):
 	mkdir $(OUTPUTDIR)
