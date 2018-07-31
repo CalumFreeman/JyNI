@@ -88,7 +88,7 @@ static PyObject* testPyFile_PyFile_WriteString(PyObject *self, PyObject *args) {
 	//int javaErrorReturn = PyFile_WriteString(myStr, NULL);
 	//if(javaErrorReturn!=-2) return NULL;
 
-	free(myStr);
+	//free(myStr);
 	return Py_BuildValue("i", 1);
 }
 
@@ -101,7 +101,7 @@ static PyObject* testPyFile_PyFile_AsFile(PyObject *self, PyObject *args){
 	}
 	FILE *f = PyFile_AsFile(Obj);
 	if(f == NULL){
-		return Py_BuildValue("s", "fIsNULL");
+		return Py_BuildValue("s", "file is closed");
 	}
 	char ch = fgetc(f);
 	if(ch!=myCh){

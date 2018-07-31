@@ -107,14 +107,15 @@ extern "C" {
 #define CallJavaMethodARGS(ClassName, MethodName, ObjectName, ...) jobject jobj = JyNI_JythonPyObject_FromPyObject(ObjectName); \
 env(NULL);\
 jobject jres = (*env)->CallObjectMethod(env, jobj, ClassName ## _ ## MethodName, __VA_ARGS__ );\
-PyObject *res = JyNI_JythonPyObject_AsPyObject(jres)
-
+int res=4;
+//PyObject *res = JyNI_PyObject_FromJythonPyObject(jres)
+// TODO fix the above and all instances where it is used
 #define CallJavaA(X, ...) CallJavaMethodARGS(pyFile, X, f, __VA_ARGS__)
 
 #define CallJavaMethod(ClassName, MethodName, ObjectName) jobject jobj = JyNI_JythonPyObject_FromPyObject(ObjectName); \
 env(NULL);\
 jobject jres = (*env)->CallObjectMethod(env, jobj, ClassName ## _ ## MethodName);\
-PyObject *res = JyNI_JythonPyObject_AsPyObject(jres)
+PyObject *res = JyNI_PyObject_FromJythonPyObject(jres)
 
 #define CallJava(X) CallJavaMethod(pyFile, X, f)
 /*
@@ -2768,16 +2769,11 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
 int
 PyFile_WriteString(const char *s, PyObject *f)
 {
-	env(-1);
-	if (f == NULL) {
-		jputs("PyFile_WriteString with NULL-pointer");
+	if (f == NULL) { // TODO throw python error here?
 		return -1;
 	} else {
-		jobject f2 = JyNI_JythonPyObject_FromPyObject(f);
-		//(*env)->CallVoidMethod(env, ((JyObject*) f)->jy, pyFileWrite, (*env)->NewStringUTF(env, s));
-		(*env)->CallVoidMethod(env, f2, pyFile_write, (*env)->NewStringUTF(env, s));
-		//todo: JNI Exception handling
-		return 0;
+		CallJavaA(file_write, (*env)->NewStringUTF(env, s));
+		return 0; // TODO JNI exception handling?
 	}
 }
 

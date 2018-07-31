@@ -78,14 +78,19 @@ import PyFileTest as pf
 
 class Test_PyFile(unittest.TestCase):
 
-    def test_PyFile_WriteString(self):
-        print "running"
-        file = open("/tmp/fred", 'w+')
-        char = 'a'
-        print pf.test_PyFile_WriteString(file, char)
-        
-        print file.read()
-        print "hi?"
+    def test_PyFile_WriteString(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
+        pa = "/tmp/fred"
+        file = open(pa, 'w+')
+        string = "Hello World!"
+        if(pf.test_PyFile_WriteString(file, string)==-1):
+            print "fail"
+        file.close()
+        file = open(pa, 'r+')
+        res = file.read()
+        self.assertEqual(res, string, "failed to write: \""+str(string)+"\" to file, got: \""+res+"\" instead");
+        import os
+        os.remove(pa)
+        print "pass"
 
 
 
