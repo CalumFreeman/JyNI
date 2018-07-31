@@ -35,13 +35,13 @@
 from distutils.core import setup, Extension
 
 DemoExt = Extension('DemoExtension', 
-		sources = ['./DemoExtension/DemoExtensionmodule.c'],
+		sources = ['./DemoExtensionmodule.c'],
 		include_dirs = [],
 		libraries = [],
 		library_dirs = []
 		)
 PyFileTestExt = Extension('PyFileTest', 
-		sources = ['./DemoExtension/PyFileTestmodule.c'],
+		sources = ['./PyFileTestmodule.c'],
 		include_dirs = [],
 		libraries = [],
 		library_dirs = []
