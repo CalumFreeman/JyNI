@@ -79,33 +79,60 @@ import PyFileTest as pf
 class Test_PyFile(unittest.TestCase):
 
     def test_PyFile_WriteString(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
-        pa = "/tmp/fred"
-        file = open(pa, 'w+')
+        name = "/tmp/fred"
+        file = open(name, 'w+')
         string = "Hello World!"
-        if(pf.test_PyFile_WriteString(file, string)==-1):
-            print "fail"
+        self.assertEqual(pf.test_PyFile_WriteString(file, string), 1)
         file.close()
-        file = open(pa, 'r+')
+        file = open(name, 'r+')
         res = file.read()
         self.assertEqual(res, string, "failed to write: \""+str(string)+"\" to file, got: \""+res+"\" instead");
         import os
-        os.remove(pa)
+        os.remove(name)
 
 
     def test_PyFile_AsFile(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
-        pa = "/tmp/fred"
-        file = open(pa, 'w+')
+        name = "/tmp/fred"
+        file = open(name, 'w+')
         string = 'a'
         file.write(string)
-        if(pf.test_PyFile_AsFile(file, string)==-1):
-            print "fail"
         file.close()
-        if(pf.test_PyFile_AsFile(file, string)!="file is closed"):
-            print "fail"
+        file = open(name, 'r+') 
+        self.assertEqual(pf.test_PyFile_AsFile(file, string), string)
+        file.close()
+        self.assertEqual(pf.test_PyFile_AsFile(file, string), "file is closed")
         import os
-        os.remove(pa)
-
+        os.remove(name)
+    
+    def test_PyFile_Name(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        self.assertEqual(pf.test_PyFile_Name(file), name)
+        file.close()
+        import os
+        os.remove(name)
+    
+    def test_file_repr(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        self.assertEqual(str(file), pf.test_file_repr(file))
+        file.close()
+        import os
+        os.remove(name)
+    
+    def test_PyFile_FromFile(self): # Note: this assumes that PyFile_AsFile works!
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        # TODO find a better way to test this
+        file2 = pf.test_PyFile_FromFile(file, name, "w+")
+        self.assertEqual(file.mode, file2.mode, "PyFile_FromFile gave file with different mode")
+        self.assertEqual(file.name, file2.name, "PyFile_FromFile gave file with different name")
+        file.close()
+        import os
+        os.remove(name)
 
 
 if __name__ == '__main__':
+    #suite = unittest.TestLoader().loadTestsFromName("test_PyFile_AsFile", Test_PyFile)
+    #unittest.TextTestRunner(verbosity=2).run(suite)
     unittest.main()

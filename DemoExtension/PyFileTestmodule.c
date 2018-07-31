@@ -105,42 +105,29 @@ static PyObject* testPyFile_PyFile_AsFile(PyObject *self, PyObject *args){
 		return Py_BuildValue("s", "file is closed");
 	}
 	char ch = fgetc(f);
-	if(ch!=myCh){
-			return Py_BuildValue("i", 0);
-	}
-	return Py_BuildValue("i", 1);
+	return Py_BuildValue("c", ch);
 }
 
 static PyObject* testPyFile_PyFile_Name(PyObject *self, PyObject *args){
 	PyObject *Obj;
-	char* myName;
 	PyObject *name;
-	char* Cname;
-	if (!PyArg_ParseTuple(args, "Os", &Obj, &myName)) {
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
 		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
 		return NULL;
 	}
 	PyFileObject *Test = (PyFileObject *)Obj;
-	name = PyFile_Name(Obj);
-	Cname = PyString_AsString(name);
-	if(myName!=name){
-		return Py_BuildValue("i", 0);
-	}
-	return Py_BuildValue("i", 1);
+	return PyFile_Name(Obj);
 }
 
 static PyObject* testPyFile_file_repr(PyObject *self, PyObject *args){
 	PyObject *Obj;
-	char* myStr;
-	if (!PyArg_ParseTuple(args, "Os", &Obj, &myStr)) {
-		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
 		return NULL;
 	}
-	char* str = PyString_AsString(Obj->ob_type->tp_repr(Obj));
-	if(str!=myStr){
-		return Py_BuildValue("i", 0);
-	}
-	return Py_BuildValue("i", 1);
+	PyObject* pstr = Obj->ob_type->tp_repr(Obj);
+	char* str = PyString_AsString(pstr);
+	return Py_BuildValue("s", str);
 }
 
 static PyObject* testPyFile_PyFile_FromFile(PyObject *self, PyObject *args){

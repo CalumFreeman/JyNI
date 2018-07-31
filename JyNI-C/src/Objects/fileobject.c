@@ -613,8 +613,11 @@ PyObject *
 PyFile_FromString(char *name, char *mode)
 {
 	env(NULL);
-	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_ConstructorStringString, name, mode);
-	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
+	jstring jname = (*env)->NewStringUTF(env, name);
+	jstring jmode = (*env)->NewStringUTF(env, mode);
+	int bufSize = 8192;// I don't understand but here is what the internet said: https://stackoverflow.com/questions/236861/how-do-you-determine-the-ideal-buffer-size-when-using-fileinputstream#237495
+	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_CSS, jname, jmode, (jint)bufSize);
+	PyObject *pfile = JyNI_PyObject_FromJythonPyObject(jfile);
 	return pfile;
 }/*
     PyFileObject *f;
@@ -768,8 +771,16 @@ file_dealloc(PyFileObject *f)
 static PyObject *
 file_repr(PyFileObject *f)
 {
-	CallJava(file_toString);
-	return res;
+	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	PyObject *pstr;
+	char *cstr;
+	jstring jstr;
+	env(NULL);
+	jstr = (*env)->CallObjectMethod(env, jobj, pyFile_file_toString);
+	cstr = (*env)->GetStringUTFChars(env, jstr, NULL);
+	pstr = Py_BuildValue("s", cstr);
+	(*env)->ReleaseStringUTFChars(env, jstr, cstr);
+	return pstr;
 	// TODO memory management...
 //	env(-1);
 //	jobject jfile;
