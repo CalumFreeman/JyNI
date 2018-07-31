@@ -93,6 +93,7 @@ static PyObject* testPyFile_PyFile_WriteString(PyObject *self, PyObject *args) {
 }
 
 static PyObject* testPyFile_PyFile_AsFile(PyObject *self, PyObject *args){
+	// takes in a file containing a character and that character then gets a file pointer and uses it to see if the char is there, if it is then this is probably pointing to the right file
 	PyObject *Obj;
 	char myCh;
 	if (!PyArg_ParseTuple(args, "Oc", &Obj, &myCh)) {

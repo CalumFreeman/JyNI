@@ -90,10 +90,20 @@ class Test_PyFile(unittest.TestCase):
         self.assertEqual(res, string, "failed to write: \""+str(string)+"\" to file, got: \""+res+"\" instead");
         import os
         os.remove(pa)
-        print "pass"
 
 
-
+    def test_PyFile_AsFile(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
+        pa = "/tmp/fred"
+        file = open(pa, 'w+')
+        string = 'a'
+        file.write(string)
+        if(pf.test_PyFile_AsFile(file, string)==-1):
+            print "fail"
+        file.close()
+        if(pf.test_PyFile_AsFile(file, string)!="file is closed"):
+            print "fail"
+        import os
+        os.remove(pa)
 
 
 
