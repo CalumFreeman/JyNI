@@ -52,6 +52,8 @@ MakeTest(PyFile_AsFile);
 MakeTest(PyFile_Name);
 MakeTest(file_repr);
 MakeTest(PyFile_FromFile);
+MakeTest(PyFile_FromString);
+MakeTest(PyFile_GetLine);
 
 // declare doc strings
 static char PyFile_docs[]= "this tests the PyFile API";
@@ -63,6 +65,8 @@ static PyMethodDef PyFileTestMethods[] = {
 		MapTest(PyFile_Name),
 		MapTest(file_repr),
 		MapTest(PyFile_FromFile),
+		MapTest(PyFile_FromString),
+		MapTest(PyFile_GetLine),
 		{ NULL, NULL, 0, NULL }
 };
 
@@ -79,7 +83,7 @@ static PyObject* testPyFile_PyFile_WriteString(PyObject *self, PyObject *args) {
 
 	// TODO check that the file actually wrote successfully check with empty and non-empty files
 	int successReturn = PyFile_WriteString(myStr, f);
-	if(successReturn!=0) return Py_BuildValue("i", -1);
+	if(successReturn==0) return Py_BuildValue("i", -1);
 
 	int errorReturn = PyFile_WriteString(myStr, NULL);
 	if(errorReturn!=-1) return Py_BuildValue("i", -1);
@@ -142,6 +146,28 @@ static PyObject* testPyFile_PyFile_FromFile(PyObject *self, PyObject *args){
 	PyObject *o = PyFile_FromFile(file, Cname, Cmode, (int (*)(FILE *))NULL);
 	// TODO check the PyFile works/is what we expect
 	return Py_BuildValue("O", o);
+}
+
+static PyObject* testPyFile_PyFile_FromString(PyObject *self, PyObject *args){
+	char* Cname;
+	char* Cmode;
+	if (!PyArg_ParseTuple(args, "ss", &Cname, &Cmode)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	PyObject *o = PyFile_FromString(Cname, Cmode);
+	// TODO check the PyFile works/is what we expect
+	return Py_BuildValue("O", o);
+}
+
+static PyObject* testPyFile_PyFile_GetLine(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	int n;
+	if (!PyArg_ParseTuple(args, "Oi", &Obj, &n)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	return PyFile_GetLine(Obj, n);
 }
 
 //initialise module

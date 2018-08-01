@@ -1686,8 +1686,10 @@ PyFile_GetLine(PyObject *f, int n)
 {
 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
-	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, n );
-	return JyNI_PyObject_FromJythonPyObject(jres); // may require code from file_repr if this doesn't work
+	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, n);
+	PyObject *res = JyNI_PyObject_FromJythonPyObject(jres); // may require code from file_repr if this doesn't work
+	//char *x = PyString_AsString(res); // TODO WHY! this doesn't make any sense but is the only way to make it work!
+	return res;// x;
 }
 /*
     PyObject *result;

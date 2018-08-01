@@ -130,6 +130,38 @@ class Test_PyFile(unittest.TestCase):
         file.close()
         import os
         os.remove(name)
+    
+    def test_PyFile_FromString(self): # Note: this assumes that PyFile_AsFile works!
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        # TODO find a better way to test this
+        file2 = pf.test_PyFile_FromString(name, "w+")
+        self.assertEqual(file.mode, file2.mode, "PyFile_FromFile gave file with different mode")
+        self.assertEqual(file.name, file2.name, "PyFile_FromFile gave file with different name")
+        file.close()
+        import os
+        os.remove(name)
+    
+    def test_PyFile_GetLine(self): # Note: this assumes that PyFile_AsFile works!
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        one = "Hello\n"
+        two = "World\n"
+        three = "Testing GetLine\n"
+        file.write(one)
+        file.write(two)
+        file.write(three)
+        file.close()
+        file = open(name, "r+")
+        onef = pf.test_PyFile_GetLine(file, -1)
+        twof = pf.test_PyFile_GetLine(file, -1)
+        threef = pf.test_PyFile_GetLine(file, -1)
+        self.assertEqual(one, onef)
+        self.assertEqual(two, twof)
+        self.assertEqual(three, threef)
+        file.close()
+        import os
+        os.remove(name)
 
 
 if __name__ == '__main__':
