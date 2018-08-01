@@ -91,7 +91,7 @@ class Test_PyFile(unittest.TestCase):
         os.remove(name)
 
 
-    def test_PyFile_AsFile(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
+    def test_PyFile_AsFile(self):
         name = "/tmp/fred"
         file = open(name, 'w+')
         string = 'a'
@@ -104,7 +104,7 @@ class Test_PyFile(unittest.TestCase):
         import os
         os.remove(name)
     
-    def test_PyFile_Name(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
+    def test_PyFile_Name(self):
         name = "/tmp/fred"
         file = open(name, 'w+')
         self.assertEqual(pf.test_PyFile_Name(file), name)
@@ -112,7 +112,7 @@ class Test_PyFile(unittest.TestCase):
         import os
         os.remove(name)
     
-    def test_file_repr(self): # TODO assertRaises() would allow testing exceptions if we add an exception for null file
+    def test_file_repr(self):
         name = "/tmp/fred"
         file = open(name, 'w+')
         self.assertEqual(str(file), pf.test_file_repr(file))
@@ -142,7 +142,7 @@ class Test_PyFile(unittest.TestCase):
         import os
         os.remove(name)
     
-    def test_PyFile_GetLine(self): # Note: this assumes that PyFile_AsFile works!
+    def test_PyFile_GetLine(self):
         name = "/tmp/fred"
         file = open(name, 'w+')
         one = "Hello\n"
@@ -162,9 +162,54 @@ class Test_PyFile(unittest.TestCase):
         file.close()
         import os
         os.remove(name)
-
+        
+    def test_PyFile_SetBufSize(self):
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        pf.test_PyFile_SetBufSize(file, 404)
+        file.close()
+        import os
+        os.remove(name)
+        
+    def test_PyFile_SetEncoding(self):
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        enc = "hello?";
+        pf.test_PyFile_SetEncoding(file, enc)
+        self.assertEqual(file.encoding, enc)
+        file.close()
+        import os
+        os.remove(name)
+        
+    def test_PyFile_SetEncodingAndErrors(self):
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        enc = "hello";
+        err = "world?";
+        pf.test_PyFile_SetEncodingAndErrors(file, enc, err)
+        self.assertEqual(file.encoding, enc)
+        self.assertEqual(file.errors, err)
+        file.close()
+        import os
+        os.remove(name)
+        
+    def test_PyFile_SoftSpace(self):
+        name = "/tmp/fred"
+        file = open(name, 'w+')
+        # Note: all positive integers will be treated as 1 by softspace(It's really a boolean)
+        pf.test_PyFile_SoftSpace(file, 1)
+        # the flag should be set to 1, so when the old flag is returned it should be 1
+        self.assertEqual(1, pf.test_PyFile_SoftSpace(file, 0))
+        # Now the old flag should be 0
+        self.assertEqual(0, pf.test_PyFile_SoftSpace(file, 1))
+        file.close()
+        import os
+        os.remove(name)
+    
+    # TODO PyFile_Type and associated methods
+    # TODO PyFile_Check PyFile_CheckExact PyFile_IncUseCount PyFile_DecUseCount PyFile_WriteObject
 
 if __name__ == '__main__':
-    #suite = unittest.TestLoader().loadTestsFromName("test_PyFile_AsFile", Test_PyFile)
+    #suite = unittest.TestLoader().loadTestsFromName("test_PyFile_SetEncodingAndErrors", Test_PyFile)
     #unittest.TextTestRunner(verbosity=2).run(suite)
     unittest.main()

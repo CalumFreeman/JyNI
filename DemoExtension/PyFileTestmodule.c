@@ -46,6 +46,7 @@ PyMODINIT_FUNC initPyFileTest(void);
 static char X ## _docs[] = "This tests the "#X" function"
 #define MapTest(X) { "test_"#X, (PyCFunction)testPyFile_ ## X, METH_VARARGS, X ## _docs }
 
+// SetBufSize SetEncoding SetEncodingAndErrors SoftSpace
 // declare functions, doc strings and method def's
 MakeTest(PyFile_WriteString);
 MakeTest(PyFile_AsFile);
@@ -54,6 +55,10 @@ MakeTest(file_repr);
 MakeTest(PyFile_FromFile);
 MakeTest(PyFile_FromString);
 MakeTest(PyFile_GetLine);
+MakeTest(PyFile_SetBufSize);
+MakeTest(PyFile_SetEncoding);
+MakeTest(PyFile_SetEncodingAndErrors);
+MakeTest(PyFile_SoftSpace);
 
 // declare doc strings
 static char PyFile_docs[]= "this tests the PyFile API";
@@ -67,6 +72,10 @@ static PyMethodDef PyFileTestMethods[] = {
 		MapTest(PyFile_FromFile),
 		MapTest(PyFile_FromString),
 		MapTest(PyFile_GetLine),
+		MapTest(PyFile_SetBufSize),
+		MapTest(PyFile_SetEncoding),
+		MapTest(PyFile_SetEncodingAndErrors),
+		MapTest(PyFile_SoftSpace),
 		{ NULL, NULL, 0, NULL }
 };
 
@@ -169,6 +178,49 @@ static PyObject* testPyFile_PyFile_GetLine(PyObject *self, PyObject *args){
 	}
 	return PyFile_GetLine(Obj, n);
 }
+
+static PyObject* testPyFile_PyFile_SetBufSize(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	int n;
+	if (!PyArg_ParseTuple(args, "Oi", &Obj, &n)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	PyFile_SetBufSize(Obj, n);
+	Py_RETURN_NONE; // This is just making sure it doesn't throw an error
+}
+static PyObject* testPyFile_PyFile_SetEncoding(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	char *enc;
+	if (!PyArg_ParseTuple(args, "Os", &Obj, &enc)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("i", PyFile_SetEncoding(Obj, enc));
+}
+static PyObject* testPyFile_PyFile_SetEncodingAndErrors(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	char *enc;
+	char *err;
+	if (!PyArg_ParseTuple(args, "Oss", &Obj, &enc, &err)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	;
+	return Py_BuildValue("i", PyFile_SetEncodingAndErrors(Obj, enc, err));
+}
+static PyObject* testPyFile_PyFile_SoftSpace(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	int newflag;
+	if (!PyArg_ParseTuple(args, "Oi", &Obj, &newflag)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("i", PyFile_SoftSpace(Obj, newflag));
+}
+
+// TODO PyFile_Type and associated methods
+// TODO PyFile_Check PyFile_CheckExact PyFile_IncUseCount PyFile_DecUseCount PyFile_WriteObject
 
 //initialise module
 PyMODINIT_FUNC

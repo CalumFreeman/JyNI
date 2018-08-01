@@ -670,13 +670,22 @@ PyFile_SetEncoding(PyObject *f, const char *enc)
 }
 
 int
-PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* errors)
+PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* err)
 {
-	// call PyFile.setEncoding
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f); \
-	env(NULL);\
-	(*env)->CallObjectMethod(env, jobj, pyFile_setEncoding, enc, errors );
-	Py_RETURN_NONE;
+	if (f == NULL){
+			jputs("PyFile_AsFile with NULL-pointer");
+			return NULL;
+	}
+	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jstring jenc = (*env)->NewStringUTF(env, enc);
+	jstring jerr;
+//	if(err==NULL){ // I'm not sure if this is needed, what should errors/encoding be set to if NULL is the argument?
+//		jerr = (*env)->NewStringUTF(env, "");
+//	}
+	jerr = (*env)->NewStringUTF(env, err);
+	(*env)->CallVoidMethod(env, jobj, pyFile_setEncoding, jenc, jerr);
+	return 1;
 }
 /*
     PyFileObject *file = (PyFileObject*)f;
@@ -2631,7 +2640,7 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
-	PyObject_GenericGetAttr,                    // tp_getattro
+	PyObject_GenericGetAttr,                    // tp_getattro // TODO changing this may allow the file_memberlist part to work
 	// softspace is writable:  we must supply tp_setattro
 	PyObject_GenericSetAttr,                    // tp_setattro
     0,                                          /* tp_as_buffer */
@@ -2714,8 +2723,10 @@ PyFile_SoftSpace(PyObject *f, int newflag)
     	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
     	env(NULL);
     	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_getSoftspace);
-        oldflag = JyNI_PyObject_FromJythonPyObject(jres);
-        (*env)->CallObjectMethod(env, jobj, pyFile_setSoftspace, newflag );
+    	PyObject* thing = JyNI_PyObject_FromJythonPyObject(jres);
+        oldflag = PyInt_AsLong(thing);
+        jobject JyPyNewFlag = JyNI_JythonPyObject_FromPyObject( Py_BuildValue("i", newflag) );
+        (*env)->CallVoidMethod(env, jobj, pyFile_setSoftspace, JyPyNewFlag);
     }
     else {
         PyObject *v;
