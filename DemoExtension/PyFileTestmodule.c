@@ -51,7 +51,6 @@ static char X ## _docs[] = "This tests the "#X" function"
 MakeTest(PyFile_WriteString);
 MakeTest(PyFile_AsFile);
 MakeTest(PyFile_Name);
-MakeTest(file_repr);
 MakeTest(PyFile_FromFile);
 MakeTest(PyFile_FromString);
 MakeTest(PyFile_GetLine);
@@ -59,7 +58,14 @@ MakeTest(PyFile_SetBufSize);
 MakeTest(PyFile_SetEncoding);
 MakeTest(PyFile_SetEncodingAndErrors);
 MakeTest(PyFile_SoftSpace);
-
+MakeTest(tp_repr);
+MakeTest(tp_getattro);
+MakeTest(tp_setattro);
+MakeTest(tp_flags);
+MakeTest(tp_doc);
+MakeTest(tp_weaklistoffset);
+MakeTest(tp_iter);
+MakeTest(tp_iternext);
 // declare doc strings
 static char PyFile_docs[]= "this tests the PyFile API";
 
@@ -68,7 +74,6 @@ static PyMethodDef PyFileTestMethods[] = {
 		MapTest(PyFile_WriteString),
 		MapTest(PyFile_AsFile),
 		MapTest(PyFile_Name),
-		MapTest(file_repr),
 		MapTest(PyFile_FromFile),
 		MapTest(PyFile_FromString),
 		MapTest(PyFile_GetLine),
@@ -76,9 +81,27 @@ static PyMethodDef PyFileTestMethods[] = {
 		MapTest(PyFile_SetEncoding),
 		MapTest(PyFile_SetEncodingAndErrors),
 		MapTest(PyFile_SoftSpace),
+		MapTest(tp_repr),
+		MapTest(tp_getattro),
+		MapTest(tp_setattro),
+		MapTest(tp_flags),
+		MapTest(tp_doc),
+		MapTest(tp_weaklistoffset),
+		MapTest(tp_iter),
+		MapTest(tp_iternext),
 		{ NULL, NULL, 0, NULL }
-};
 
+};
+//	PyObject_GenericGetAttr,                    // tp_getattro
+//	PyObject_GenericSetAttr,                    // tp_setattro
+//    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_WEAKREFS, // tp_flags
+//    file_doc,                                   /* tp_doc */
+//	0,//offsetof(PyFileObject, weakreflist),        // tp_weaklistoffset	This may cause trouble!
+//	(getiterfunc)file_self,                     // tp_iter
+//	(iternextfunc)file_iternext,                // tp_iternext
+//	file_methods,                               // tp_methods
+//	file_memberlist,                             // tp_members
+//	file_getsetlist,                            // tp_getset
 
 
 // define functions
@@ -123,24 +146,11 @@ static PyObject* testPyFile_PyFile_AsFile(PyObject *self, PyObject *args){
 
 static PyObject* testPyFile_PyFile_Name(PyObject *self, PyObject *args){
 	PyObject *Obj;
-	PyObject *name;
 	if (!PyArg_ParseTuple(args, "O", &Obj)) {
 		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
 		return NULL;
 	}
-	PyFileObject *Test = (PyFileObject *)Obj;
 	return PyFile_Name(Obj);
-}
-
-static PyObject* testPyFile_file_repr(PyObject *self, PyObject *args){
-	PyObject *Obj;
-	if (!PyArg_ParseTuple(args, "O", &Obj)) {
-		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
-		return NULL;
-	}
-	PyObject* pstr = Obj->ob_type->tp_repr(Obj);
-	char* str = PyString_AsString(pstr);
-	return Py_BuildValue("s", str);
 }
 
 static PyObject* testPyFile_PyFile_FromFile(PyObject *self, PyObject *args){
@@ -219,8 +229,85 @@ static PyObject* testPyFile_PyFile_SoftSpace(PyObject *self, PyObject *args){
 	return Py_BuildValue("i", PyFile_SoftSpace(Obj, newflag));
 }
 
-// TODO PyFile_Type and associated methods
-// TODO PyFile_Check PyFile_CheckExact PyFile_IncUseCount PyFile_DecUseCount PyFile_WriteObject
+static PyObject* testPyFile_tp_repr(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	PyObject* pstr = Obj->ob_type->tp_repr(Obj);
+	char* str = PyString_AsString(pstr);
+	return Py_BuildValue("s", str);
+}
+
+static PyObject* testPyFile_tp_getattro(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	char *Cname;
+	if (!PyArg_ParseTuple(args, "Os", &Obj, &Cname)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	PyObject *name = PyString_FromString(Cname);
+	return Obj->ob_type->tp_getattro(Obj, name);
+}
+
+static PyObject* testPyFile_tp_setattro(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	char *Cname;
+	PyObject *value;
+	if (!PyArg_ParseTuple(args, "OsO", &Obj, &Cname, &value)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	PyObject *name = PyString_FromString(Cname);
+	int res = Obj->ob_type->tp_setattro(Obj, name, value);
+	return Py_BuildValue("i", res);
+}
+
+static PyObject* testPyFile_tp_flags(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("i", Obj->ob_type->tp_flags);
+}
+
+static PyObject* testPyFile_tp_doc(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("s", Obj->ob_type->tp_doc);
+}
+
+static PyObject* testPyFile_tp_weaklistoffset(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("s", "Nope");
+}
+
+static PyObject* testPyFile_tp_iter(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("s", Obj->ob_type->tp_iter(Obj));
+}
+
+static PyObject* testPyFile_tp_iternext(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("s", Obj->ob_type->tp_iternext(Obj));
+}
 
 //initialise module
 PyMODINIT_FUNC

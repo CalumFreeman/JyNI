@@ -1321,8 +1321,9 @@ static PyObject *
 file_readinto(PyFileObject *f, PyObject *args)
 {
 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	jobject jbuf = JyNI_JythonPyObject_FromPyObject(args); // TODO get this to work, file_write converts it to a string first but this won't work here
 	env(NULL);
-	jint jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readinto);
+	jint jres = (*env)->CallIntMethod(env, jobj, pyFile_file_readinto, jbuf);
 	return Py_BuildValue("i", jres);
 //    char *ptr;
 //    Py_ssize_t ntodo;
@@ -1964,7 +1965,7 @@ file_readlines(PyFileObject *f, PyObject *args)
 static PyObject *
 file_write(PyFileObject *f, PyObject *args)
 {
-	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
+	jobject jargs = JyNI_JythonPyObject_FromPyObject(PyObject_Repr(args));
 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
 	(*env)->CallObjectMethod(env, jobj, pyFile_file_write, jargs );
@@ -2162,7 +2163,7 @@ file_writelines(PyFileObject *f, PyObject *seq)
 static PyObject *
 file_self(PyFileObject *f)
 {
-	if (!is_file_closed())
+	if (!is_file_open(f))
 	    return err_closed();
 	Py_INCREF(f);
 	return (PyObject *)f;
@@ -2352,9 +2353,9 @@ set_softspace(PyFileObject *f, PyObject *value)
 {
 	jobject jvalue = JyNI_JythonPyObject_FromPyObject(value);
 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
-	env(NULL);
+	env(-1);
 	(*env)->CallObjectMethod(env, jobj, pyFile_setSoftspace, jvalue );
-	Py_RETURN_NONE;
+	return 1;
 }
 
 static PyGetSetDef file_getsetlist[] = {
@@ -2725,8 +2726,9 @@ PyFile_SoftSpace(PyObject *f, int newflag)
     	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_getSoftspace);
     	PyObject* thing = JyNI_PyObject_FromJythonPyObject(jres);
         oldflag = PyInt_AsLong(thing);
-        jobject JyPyNewFlag = JyNI_JythonPyObject_FromPyObject( Py_BuildValue("i", newflag) );
-        (*env)->CallVoidMethod(env, jobj, pyFile_setSoftspace, JyPyNewFlag);
+        set_softspace(f, Py_BuildValue("i", newflag));
+        //jobject JyPyNewFlag = JyNI_JythonPyObject_FromPyObject( Py_BuildValue("i", newflag) );
+        //(*env)->CallVoidMethod(env, jobj, pyFile_setSoftspace, JyPyNewFlag);
     }
     else {
         PyObject *v;
@@ -2843,53 +2845,53 @@ PyFile_WriteString(const char *s, PyObject *f)
 // -1 is returned on failure.
 
 
-int PyObject_AsFileDescriptor(PyObject *o)
-{
-	int fd;
-    PyObject *meth;
-
-    if (PyInt_Check(o)) {
-        fd = PyInt_AsLong(o);
-    }
-    else if (PyLong_Check(o)) {
-        fd = PyLong_AsLong(o);
-    }
-    else if ((meth = PyObject_GetAttrString(o, "fileno")) != NULL)
-    {
-        PyObject *fno = PyEval_CallObject(meth, NULL);
-        Py_DECREF(meth);
-        if (fno == NULL)
-            return -1;
-
-        if (PyInt_Check(fno)) {
-            fd = PyInt_AsLong(fno);
-            Py_DECREF(fno);
-        }
-        else if (PyLong_Check(fno)) {
-            fd = PyLong_AsLong(fno);
-            Py_DECREF(fno);
-        }
-        else {
-            PyErr_SetString(PyExc_TypeError,
-                            "fileno() returned a non-integer");
-            Py_DECREF(fno);
-            return -1;
-        }
-    }
-    else {
-        PyErr_SetString(PyExc_TypeError,
-                        "argument must be an int, or have a fileno() method.");
-        return -1;
-    }
-
-    if (fd < 0) {
-        PyErr_Format(PyExc_ValueError,
-                     "file descriptor cannot be a negative integer (%i)",
-                     fd);
-        return -1;
-    }
-    return fd;
-}
+//int PyObject_AsFileDescriptor(PyObject *o)
+//{
+//	int fd;
+//    PyObject *meth;
+//
+//    if (PyInt_Check(o)) {
+//        fd = PyInt_AsLong(o);
+//    }
+//    else if (PyLong_Check(o)) {
+//        fd = PyLong_AsLong(o);
+//    }
+//    else if ((meth = PyObject_GetAttrString(o, "fileno")) != NULL)
+//    {
+//        PyObject *fno = PyEval_CallObject(meth, NULL);
+//        Py_DECREF(meth);
+//        if (fno == NULL)
+//            return -1;
+//
+//        if (PyInt_Check(fno)) {
+//            fd = PyInt_AsLong(fno);
+//            Py_DECREF(fno);
+//        }
+//        else if (PyLong_Check(fno)) {
+//            fd = PyLong_AsLong(fno);
+//            Py_DECREF(fno);
+//        }
+//        else {
+//            PyErr_SetString(PyExc_TypeError,
+//                            "fileno() returned a non-integer");
+//            Py_DECREF(fno);
+//            return -1;
+//        }
+//    }
+//    else {
+//        PyErr_SetString(PyExc_TypeError,
+//                        "argument must be an int, or have a fileno() method.");
+//        return -1;
+//    }
+//
+//    if (fd < 0) {
+//        PyErr_Format(PyExc_ValueError,
+//                     "file descriptor cannot be a negative integer (%i)",
+//                     fd);
+//        return -1;
+//    }
+//    return fd;
+//}
 
 
 /* From here on we need access to the real fgets and fread */
