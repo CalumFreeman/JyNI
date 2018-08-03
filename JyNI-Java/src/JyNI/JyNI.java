@@ -1278,9 +1278,12 @@ public class JyNI {
 		return ((PyInteger)((FileIO)fileno).__int__()).getValue();
 	}
 	
-	public static String PyFile_mode(PyObject fileo) {
-		PyFile file = (PyFile)fileo;
-		return file.mode;
+	public static void PyFile_initHelper(PyObject[] args, String[] kwds) {
+		// This is just to allow the debugger to see the variables so I can find out about them.
+		// In future it should be used to pass variables through to the file_init function in the correct format.
+		System.out.println("Hello");
+		PyObject[] a = args;
+		String[] b = kwds;
 	}
 	
 	public static int is_file_open(PyObject fileo) {

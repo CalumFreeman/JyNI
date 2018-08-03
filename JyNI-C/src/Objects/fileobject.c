@@ -129,7 +129,6 @@ PyFile_AsFile(PyObject *f)
 	// get the file descriptor and mode of the file
 	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
 	jmode = (*env)->GetObjectField(env, jfile, pyFile_modeField);
-	// jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
 
 	// convert the mode to a c char * open the file and then release the string so it doesn't stay in memory
 	cmode = (*env)->GetStringUTFChars(env, jmode, 0);
@@ -2477,12 +2476,12 @@ file_iternext(PyFileObject *f)
 }
 
 
-//static PyObject *
+static PyObject *
 file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	env(NULL);
 	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_Constructor);
-	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
+	PyObject* pfile = JyNI_PyObject_FromJythonPyObject(jfile);
 	return pfile;
 }
 /*
@@ -2519,12 +2518,16 @@ file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static int
 file_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
+	// This possibly needs to use the commented out code and just implement fill_file_fields etc
+	// We could also just parse out the arguemnts and hope
 	jobject jfile = JyNI_JythonPyObject_FromPyObject(self);
 	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
-	jobject jkwds = JyNI_JythonPyObject_FromPyObject(kwds);
+	jobject jkwds = JyNI_JythonPyObject_FromPyObject(kwds); //kwds should be converted to strings somehow?
 	env(-1);
+	(*env)->CallVoidMethod(env, jfile, JyNI_PyFile_initHelper, jargs, jkwds);
 	(*env)->CallVoidMethod(env, jfile, pyFile_file___init__, jargs, jkwds);
-	PyObject *pfile = JyNI_JythonPyObject_AsPyObject(jfile);
+	PyObject *pfile = JyNI_PyObject_FromJythonPyObject(jfile);
+	char *tmp = PyString_AsString(pfile->ob_type->tp_repr(pfile)); // This allows gdb to see the result of file_repr which tells me the name/mode change hasn't worked
 	Py_DECREF(self);
 	self = pfile;
 	return 0;
@@ -2541,14 +2544,15 @@ file_init(PyObject *self, PyObject *args, PyObject *kwds)
     PyObject *po;
 #endif
 
-    assert(PyFile_Check(self));
-    if (foself->f_fp != NULL) {
-        // Have to close the existing file first.
-        PyObject *closeresult = file_close(foself);
-        if (closeresult == NULL)
-            return -1;
-        Py_DECREF(closeresult);
-    }
+// Should be handled by file_init in fill_file_fields
+//    assert(PyFile_Check(self));
+//    if (is_file_open(f)) {
+//        // Have to close the existing file first.
+//        PyObject *closeresult = file_close(foself);
+//        if (closeresult == NULL)
+//            return -1;
+//        Py_DECREF(closeresult);
+//    }
 
 #ifdef MS_WINDOWS
     if (PyArg_ParseTupleAndKeywords(args, kwds, "U|si:file",
@@ -2567,11 +2571,12 @@ file_init(PyObject *self, PyObject *args, PyObject *kwds)
     if (!wideargument) {
         PyObject *o_name;
 
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, "et|si:file", kwlist,
-                                         Py_FileSystemDefaultEncoding,
-                                         &name,
-                                         &mode, &bufsize))
-            return -1;
+// The Py_FileSystemDefaultEncoding causes a crash so this has been commented out temporaraly
+//        if (!PyArg_ParseTupleAndKeywords(args, kwds, "et|si:file", kwlist,
+//                                         Py_FileSystemDefaultEncoding,
+//                                         &name,
+//                                         &mode, &bufsize))
+//        	return -1;
 
         // We parse again to get the name as a PyObject
         if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|si:file",
@@ -2583,10 +2588,11 @@ file_init(PyObject *self, PyObject *args, PyObject *kwds)
                              fclose) == NULL)
             goto Error;
     }
-    if (open_the_file(foself, name, mode) == NULL)
-        goto Error;
-    foself->f_setbuf = NULL;
-    PyFile_SetBufSize(self, bufsize);
+    // Handled by file_init in fill_file_fields
+    //if (open_the_file(foself, name, mode) == NULL)
+    //    goto Error;
+    //foself->f_setbuf = NULL;
+    //PyFile_SetBufSize(self, bufsize);
     goto Done;
 
 Error:

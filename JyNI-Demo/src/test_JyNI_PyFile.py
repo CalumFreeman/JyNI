@@ -81,7 +81,8 @@ import PyFileTest as pf
 class Test_PyFile(unittest.TestCase):
     
     def setUp(self):
-        self.name = "/tmp/fred"
+        # TODO check if the file exists, if it does pick a different one from a list of names(if no file can be made raise an exception). Make sure it and any other files are removed by the end.
+        self.name = "/tmp/JyNI_tests"
         self.mode = "w+"
         self.file = open(self.name, self.mode)
     
@@ -162,10 +163,12 @@ class Test_PyFile(unittest.TestCase):
         self.assertEqual(0, pf.test_PyFile_SoftSpace(self.file, 1))
     
     def test_PyFile_Check(self):
-        self.assertFalse(True, "Not yet implemented")
+        self.assertFalse(pf.test_PyFile_Check([1,2]))
+        self.assertTrue(pf.test_PyFile_Check(self.file))
     
     def test_PyFile_CheckExact(self):
-        self.assertFalse(True, "Not yet implemented")
+        self.assertFalse(pf.test_PyFile_CheckExact([1,2]))
+        self.assertTrue(pf.test_PyFile_CheckExact(self.file))
         
     def test_PyFile_IncUseCount(self):
         raise(Exception("Not yet Implemented"))
@@ -173,7 +176,6 @@ class Test_PyFile(unittest.TestCase):
     def test_PyFile_DecUseCount(self):
         raise(Exception("Not yet Implemented"))
     
-    @SkipTest
     def test_PyFile_WriteObject(self):
         raise(Exception("Not yet Implemented"))
       
@@ -282,7 +284,10 @@ class Test_PyFile(unittest.TestCase):
         raise(Exception("Not yet Implemented"))
         
     def test_file_tell(self):
-        self.assertFalse(True, "Not yet implemented")
+        # Not sure what this is, but this checks it gets the right value on at least one occasion,
+        # this tells us that it is probably calling java correctly
+        # if the call is to the correct method and it works once then it should always work
+        self.assertEqual(self.file.tell(), pf.test_tp_getattro(self.file, "tell")())
         
     def test_file_readinto(self):
         L1 = "Hello\n"
@@ -295,12 +300,9 @@ class Test_PyFile(unittest.TestCase):
         testArr = bytearray('aaaaaaaaaaaa')
         testArr2 = bytearray('aaaaaaaaaaaa')
         self.file.readinto(testArr)
-        thing = pf.test_tp_getattro(self.file, "readinto")
-        thing(testArr2)
-        tmp = self.file.read()
-        print testArr
-        print testArr2
-        self.assertFalse(True, "Not yet implemented")
+        self.file.seek(0)
+        pf.test_tp_getattro(self.file, "readinto")(testArr2)
+        self.assertEqual(testArr, testArr2)
         
     def test_file_readlines(self):
         L1 = "Hello\n"
@@ -342,14 +344,29 @@ class Test_PyFile(unittest.TestCase):
         self.assertEqual(inpt, self.file.readlines());
         
     def test_file_flush(self):
-        self.assertFalse(True, "Not yet implemented")
+        # try opening two files at the same time accessing the same place?
+        s1 = "Hello "
+        s2 = "World!"
+        self.file.write(s1)
+        self.file.close()
+        self.file = open(self.name, "a")
+        self.file.write(s2)
+        self.file2 = open(self.name, "r")
+        self.assertEqual(self.file2.read(), s1)
+        pf.test_tp_getattro(self.file, "flush")()
+        self.file2.close()
+        self.file2 = open(self.name, "r")
+        self.assertEqual(self.file2.read(), s1+s2)
         
     def test_file_close(self):
         self.assertFalse(self.file.closed, "self.file.closed isn't working properly so this test won't work!")
         pf.test_tp_getattro(self.file, "close")()
         self.assertTrue(self.file.closed, "file_close hasn't worked properly")
         
-    def test_file_isatty(self):
+    def test_file_isatty(self): 
+        # Not sure what this is, but this checks it gets the right value on at least one occasion,
+        # this tells us that it is probably calling java correctly
+        # if the call is to the correct method and it works once then it should always work
         self.assertEqual(self.file.isatty(), pf.test_tp_getattro(self.file, "isatty")())
 
         
@@ -361,13 +378,19 @@ class Test_PyFile(unittest.TestCase):
 
     
     def test_tp_init(self):
-        self.assertFalse(True, "Not yet implemented")
+        # TODO this may be the wrong way to pass the arguments in
+        newName, newMode = "Hello", "r+"
+        pf.test_tp_init(self.file, [newName, newMode, -1], ["name", "mode", "buffering"])
+        # This should be a valid test although the code isn't passing yet
+        self.assertEqual(self.file.name, newName)
+        self.assertEqual(self.file.mode, newMode)
     
     def test_tp_alloc(self):
         self.assertFalse(True, "Not yet implemented")
         
     def test_tp_new(self):
-        self.assertFalse(True, "Not yet implemented")
+        f = pf.test_tp_new(self.file)
+        self.assertEqual(type(f), type(self.file))
         
     def test_tp_free(self):
         self.assertFalse(True, "Not yet implemented")
@@ -375,6 +398,6 @@ class Test_PyFile(unittest.TestCase):
     
 
 if __name__ == '__main__':
-    #suite = unittest.TestLoader().loadTestsFromName("test_file_isatty", Test_PyFile)
+    #suite = unittest.TestLoader().loadTestsFromName("test_tp_init", Test_PyFile)
     #unittest.TextTestRunner(verbosity=2).run(suite)
     unittest.main()

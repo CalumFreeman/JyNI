@@ -48,6 +48,8 @@ static char X ## _docs[] = "This tests the "#X" function"
 
 // SetBufSize SetEncoding SetEncodingAndErrors SoftSpace
 // declare functions, doc strings and method def's
+MakeTest(PyFile_Check);
+MakeTest(PyFile_CheckExact);
 MakeTest(PyFile_WriteString);
 MakeTest(PyFile_AsFile);
 MakeTest(PyFile_Name);
@@ -66,11 +68,15 @@ MakeTest(tp_doc);
 MakeTest(tp_weaklistoffset);
 MakeTest(tp_iter);
 MakeTest(tp_iternext);
+MakeTest(tp_new);
+MakeTest(tp_init);
 // declare doc strings
 static char PyFile_docs[]= "this tests the PyFile API";
 
 // declare module map
 static PyMethodDef PyFileTestMethods[] = {
+		MapTest(PyFile_Check),
+		MapTest(PyFile_CheckExact),
 		MapTest(PyFile_WriteString),
 		MapTest(PyFile_AsFile),
 		MapTest(PyFile_Name),
@@ -89,6 +95,8 @@ static PyMethodDef PyFileTestMethods[] = {
 		MapTest(tp_weaklistoffset),
 		MapTest(tp_iter),
 		MapTest(tp_iternext),
+		MapTest(tp_new),
+		MapTest(tp_init),
 		{ NULL, NULL, 0, NULL }
 
 };
@@ -105,6 +113,22 @@ static PyMethodDef PyFileTestMethods[] = {
 
 
 // define functions
+static PyObject* testPyFile_PyFile_Check(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_PyFile_Check didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("i", PyFile_Check(Obj));
+}
+static PyObject* testPyFile_PyFile_CheckExact(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_PyFile_CheckExact didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("i", PyFile_CheckExact(Obj));
+}
 static PyObject* testPyFile_PyFile_WriteString(PyObject *self, PyObject *args) {
 	PyObject *f;
 	char *myStr;
@@ -147,7 +171,7 @@ static PyObject* testPyFile_PyFile_AsFile(PyObject *self, PyObject *args){
 static PyObject* testPyFile_PyFile_Name(PyObject *self, PyObject *args){
 	PyObject *Obj;
 	if (!PyArg_ParseTuple(args, "O", &Obj)) {
-		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		printf("PyArg_ParseTuple in testPyFile_PyFile_Name didn't work\n");
 		return NULL;
 	}
 	return PyFile_Name(Obj);
@@ -309,6 +333,25 @@ static PyObject* testPyFile_tp_iternext(PyObject *self, PyObject *args){
 	return Py_BuildValue("s", Obj->ob_type->tp_iternext(Obj));
 }
 
+static PyObject* testPyFile_tp_new(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("O", Obj->ob_type->tp_new(NULL, NULL, NULL));
+}
+static PyObject* testPyFile_tp_init(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	PyObject *ags;
+	PyObject *kwags;
+	if (!PyArg_ParseTuple(args, "OOO", &Obj, &ags, &kwags)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	Obj->ob_type->tp_init(Obj, ags, kwags);
+	return NULL;
+}
 //initialise module
 PyMODINIT_FUNC
 initPyFileTest(void)
