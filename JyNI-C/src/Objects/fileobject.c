@@ -103,7 +103,20 @@
 extern "C" {
 #endif
 
-
+ static PyObject *
+ file_close(PyFileObject *f)
+ {
+ 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f); \
+ 	env(NULL);\
+ 	(*env)->CallObjectMethod(env, jobj, pyFile_file_close);
+ 	Py_RETURN_NONE; //I don't know what this is meant to return so it's returning none
+ //    PyObject *sts = close_the_file(f);
+ //    if (sts) {
+ //        PyMem_Free(f->f_setbuf);
+ //        f->f_setbuf = NULL;
+ //    }
+ //    return sts;
+ }
 /*
  * JyNI note:
  * See https://github.com/Stewori/JyNI/issues/11
@@ -117,7 +130,7 @@ PyFile_AsFile(PyObject *f)
 	jstring jmode;
 	FILE *cFile;
 	char *cmode;
-	env(-1);
+	env(NULL);
 	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
 		return NULL;
@@ -132,25 +145,33 @@ PyFile_AsFile(PyObject *f)
 
 	// convert the mode to a c char * open the file and then release the string so it doesn't stay in memory
 	cmode = (*env)->GetStringUTFChars(env, jmode, 0);
-	cFile = fdopen((int)fd, cmode);
+	cFile = fdopen((int)fd, cmode); // This creates a new file which may never be removed as extensions expect it to be stored in the PyFileObject and be managed with PfInc/DecUseCount
 	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
 
 	// return the file
 	return cFile;
 }
+/**
+ * The decision was taken to simply have dummy methods for PyFile_IncUseCount and PyFile_DecUseCount yet as
+ * these functions are not commonly used in C Extensions. If a C extension is encountered which requires these
+ * functions then they should be implemented at that point. The discussion around this took place here: https://github.com/Stewori/JyNI/issues/11
+ *
+ * It may also be preferable to implement these on the jython side of things, this suggestion is reflected here: http://bugs.jython.org/issue2699
+ */
 
-/*
 void PyFile_IncUseCount(PyFileObject *fobj)
 {
-    fobj->unlocked_count++;
+	jputs("JyNI Warning: PyFile_IncUseCount not implemented.");
+	//fobj->unlocked_count++;
 }
 
 void PyFile_DecUseCount(PyFileObject *fobj)
 {
-    fobj->unlocked_count--;
-    assert(fobj->unlocked_count >= 0);
+	jputs("JyNI Warning: PyFile_DecUseCount not implemented.");
+	//fobj->unlocked_count--;
+    //assert(fobj->unlocked_count >= 0);
 }
-*/
+
 PyObject *
 PyFile_Name(PyObject *f)
 {
@@ -158,7 +179,7 @@ PyFile_Name(PyObject *f)
 	jobject jfile;
 	jstring jname;
 	char *cname;
-	env(-1);
+	env(NULL);
 	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
 		return NULL;
@@ -185,14 +206,14 @@ int is_file_open(PyObject *f)
 	env(-1);
 	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
-		return NULL;
+		return -1;
 	}
 	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
 	jint open = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_is_file_open, jfile);
 	return (int)open;
 }
 
-/*
+
 // This is a safe wrapper around PyObject_Print to print to the FILE
 // of a PyFileObject. PyObject_Print releases the GIL but knows nothing
 // about PyFileObject.
@@ -200,12 +221,12 @@ static int
 file_PyObject_Print(PyObject *op, PyFileObject *f, int flags)
 {
     int result;
-    PyFile_IncUseCount(f);
-    result = PyObject_Print(op, f->f_fp, flags);
+    PyFile_IncUseCount(f); // This could fail since the use count hasn't actually been incremented (which could lead to file dissapearing part way through?)
+    result = PyObject_Print(op, PyFile_AsFile(f), flags);
     PyFile_DecUseCount(f);
     return result;
 }
-
+/*
 // On Unix, fopen will succeed for directories.
 // In Python, there should be no file objects referring to
 // directories, so we need a check.
@@ -673,10 +694,10 @@ PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* err)
 {
 	if (f == NULL){
 			jputs("PyFile_AsFile with NULL-pointer");
-			return NULL;
+			return -1;
 	}
 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
-	env(NULL);
+	env(-1);
 	jstring jenc = (*env)->NewStringUTF(env, enc);
 	jstring jerr;
 //	if(err==NULL){ // I'm not sure if this is needed, what should errors/encoding be set to if NULL is the argument?
@@ -739,10 +760,24 @@ err_iterbuffered(void)
 static void drop_readahead(PyFileObject *);
 */
 // Methods
-/*
+
 static void
 file_dealloc(PyFileObject *f)
 {
+	 JyNIDebugOp(JY_NATIVE_FINALIZE, f, -1);
+	 // We will revisit that:
+	 //if (f->weakreflist != NULL)
+	 //    PyObject_ClearWeakRefs((PyObject *) f);
+	 PyObject *ret = file_close(f); // since we aren't dealling with the PyInc/DecUse we don't need to check the ref count for that. TODO we should check the ob_refcount before deallocating everything though.
+	 if (!ret) {
+	     PySys_WriteStderr("close failed in file object destructor:\n");
+	     PyErr_Print();
+	 }
+	 else {
+	     Py_DECREF(ret);
+	 }
+	 Py_TYPE(f)->tp_free(f);
+}/*
     PyObject *ret;
     if (f->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) f);
@@ -761,13 +796,13 @@ file_dealloc(PyFileObject *f)
     Py_XDECREF(f->f_errors);
     drop_readahead(f);
     Py_TYPE(f)->tp_free((PyObject *)f);
-}
+}*/
 
-*/
+
 static PyObject *
 file_repr(PyFileObject *f)
 {
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	jobject jobj = JyNI_JythonPyObject_FromPyObject((PyObject *)f);
 	PyObject *pstr;
 	char *cstr;
 	jstring jstr;
@@ -824,20 +859,7 @@ file_repr(PyFileObject *f)
 }
 
 
-static PyObject *
-file_close(PyFileObject *f)
-{
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f); \
-	env(NULL);\
-	(*env)->CallObjectMethod(env, jobj, pyFile_file_close);
-	Py_RETURN_NONE; //I don't know what this is meant to return
-//    PyObject *sts = close_the_file(f);
-//    if (sts) {
-//        PyMem_Free(f->f_setbuf);
-//        f->f_setbuf = NULL;
-//    }
-//    return sts;
-}
+
 
 /*
 // Our very own off_t-like type, 64-bit if possible
@@ -1135,13 +1157,20 @@ file_tell(PyFileObject *f)
 //#endif
 }
 
+// Note: this should return the file descriptor not the fileno returned by jython
 static PyObject *
 file_fileno(PyFileObject *f)
 {
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	printf("Hello!");
+	fflush(stdout);
+	if(!is_file_open(f)){
+		return err_closed();
+	}
 	env(NULL);
-	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_fileno);
-	return JyNI_PyObject_FromJythonPyObject(jres);
+	return 4;
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jint fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
+	return PyInt_FromLong((long) fd);
 //    if (f->f_fp == NULL)
 //        return err_closed();
 //    return PyInt_FromLong((long) fileno(f->f_fp));
@@ -2177,10 +2206,11 @@ file_xreadlines(PyFileObject *f)
     return file_self(f);
 }
 
+// This is to do with context managers, in the case of files it should just close the file
 static PyObject *
 file_exit(PyObject *f, PyObject *args)
 {
-	file_close((PyFileObject*)f); // I'm not sure there is a difference between these two functions as far as java is concerned
+	file_close((PyFileObject*)f);
 	Py_RETURN_NONE;
 //    PyObject *ret = PyObject_CallMethod(f, "close", NULL);
 //    if (!ret)
@@ -2283,6 +2313,7 @@ PyDoc_STRVAR(enter_doc,
 PyDoc_STRVAR(exit_doc,
              "__exit__(*excinfo) -> None.  Closes the file.");
 
+// These seem to not be needed as the tp_getattro function currently calls java instead of checking this table
 static PyMethodDef file_methods[] = {
     {"readline",  (PyCFunction)file_readline, METH_VARARGS, readline_doc},
     {"read",      (PyCFunction)file_read,     METH_VARARGS, read_doc},
@@ -2306,7 +2337,6 @@ static PyMethodDef file_methods[] = {
 };
 
 #define OFF(x) offsetof(PyFileObject, x)
-// TODO this won't work as is...
 static PyMemberDef file_memberlist[] = {
     {"mode",            T_OBJECT,       OFF(f_mode),    RO,
      "file mode ('r', 'U', 'w', 'a', possibly with 'b' or '+' added)"},
@@ -2467,7 +2497,7 @@ readahead_get_line_skip(PyFileObject *f, int skip, int bufsize)
 static PyObject *
 file_iternext(PyFileObject *f)
 {
-	if (!is_file_open(f))
+	if (!is_file_open((PyObject *)f))
 	        return err_closed();
 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
@@ -2625,17 +2655,15 @@ PyDoc_STR(
 "\n"
 "'U' cannot be combined with 'w' or '+' mode.\n"
 );
-// TODO PyFile_IncUseCount
-// TODO PyFile_DecUseCount
-// TODO PyFile_WriteObject
-// TODO tp_dealloc
-//empty dummy-type  -- todo: cleanup/implement
+
+// TODO PyObject_AsFileDescriptor
+// TODO test everything!
 PyTypeObject PyFile_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "file",
     sizeof(PyFileObject),
     0,
-    0,                   // tp_dealloc
+	(destructor)file_dealloc,                   // tp_dealloc
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -2647,7 +2675,7 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
-	PyObject_GenericGetAttr,                    // tp_getattro // TODO changing this may allow the file_memberlist part to work
+	PyObject_GenericGetAttr,                    // tp_getattro // TODO changing this may allow us to hook into fileno() and avoid the jython problems
 	// softspace is writable:  we must supply tp_setattro
 	PyObject_GenericSetAttr,                    // tp_setattro
     0,                                          /* tp_as_buffer */
@@ -2656,11 +2684,11 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
-	0,//offsetof(PyFileObject, weakreflist),        // tp_weaklistoffset	This may cause trouble!
+	0,        // tp_weaklistoffset	This may cause trouble!
 	(getiterfunc)file_self,                     // tp_iter
 	(iternextfunc)file_iternext,                // tp_iternext
-	file_methods,                               // tp_methods
-	file_memberlist,                             // tp_members
+	file_methods,                               // tp_methods As it turns out, none of these are called since PyObject_GetAttr does the java calls for us!
+	file_memberlist,                            // tp_members
 	file_getsetlist,                            // tp_getset
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
@@ -2670,7 +2698,7 @@ PyTypeObject PyFile_Type = {
 	file_init,                                  // tp_init
 	PyType_GenericAlloc,                        // tp_alloc
     file_new,                                   // tp_new
-	PyObject_Free,//TODO: this may be the wrong thing                           // tp_free
+	PyObject_Free,								// tp_free
 };
 
 /*
@@ -2727,12 +2755,12 @@ PyFile_SoftSpace(PyObject *f, int newflag)
         // Do nothing
     }
     else if (PyFile_Check(f)) {
-    	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+    	jobject jobj = JyNI_JythonPyObject_FromPyObject((PyObject *)f);
     	env(NULL);
     	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_getSoftspace);
     	PyObject* thing = JyNI_PyObject_FromJythonPyObject(jres);
         oldflag = PyInt_AsLong(thing);
-        set_softspace(f, Py_BuildValue("i", newflag));
+        set_softspace((PyFileObject *)f, Py_BuildValue("i", newflag));
         //jobject JyPyNewFlag = JyNI_JythonPyObject_FromPyObject( Py_BuildValue("i", newflag) );
         //(*env)->CallVoidMethod(env, jobj, pyFile_setSoftspace, JyPyNewFlag);
     }
@@ -2757,10 +2785,33 @@ PyFile_SoftSpace(PyObject *f, int newflag)
         }
     }
     return (int)oldflag;
-}/*
+}
 
 // Interfaces to write objects/strings to file-like objects
 
+static PyObject *PyFile_GetEncoding(PyObject *f){
+	cstr_decl(cEnc);
+	env(NULL);
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jstring jEnc = (*env)->GetObjectField(env, jfile, pyFile_encodingField); // TODO JNI
+	if(jEnc){
+		cstr_from_jstring(cEnc, jEnc);
+		return PyString_FromString(cEnc);
+	}
+	Py_RETURN_NONE;
+
+}
+static PyObject *PyFile_GetErrors(PyObject *f){
+	cstr_decl(cErr);
+	env(NULL);
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jstring jErr = (*env)->GetObjectField(env, jfile, pyFile_errorsField);
+	if(jErr){
+		cstr_from_jstring(cErr, jErr);
+		return PyString_FromString(cErr);
+	}
+	Py_RETURN_NONE;
+}
 int
 PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
 {
@@ -2772,10 +2823,10 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
     else if (PyFile_Check(f)) {
         PyFileObject *fobj = (PyFileObject *) f;
 #ifdef Py_USING_UNICODE
-        PyObject *enc = fobj->f_encoding;
+        PyObject *enc = PyFile_GetEncoding(fobj);
         int result;
 #endif
-        if (fobj->f_fp == NULL) {
+        if (!is_file_open(f)) {
             err_closed();
             return -1;
         }
@@ -2783,8 +2834,8 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
         if ((flags & Py_PRINT_RAW) &&
             PyUnicode_Check(v) && enc != Py_None) {
             char *cenc = PyString_AS_STRING(enc);
-            char *errors = fobj->f_errors == Py_None ?
-              "strict" : PyString_AS_STRING(fobj->f_errors);
+            char *errors = PyFile_GetErrors(fobj) == Py_None ?
+              "strict" : PyString_AS_STRING(PyFile_GetErrors(fobj));
             value = PyUnicode_AsEncodedString(v, cenc, errors);
             if (value == NULL)
                 return -1;
@@ -2829,7 +2880,7 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
         return -1;
     Py_DECREF(result);
     return 0;
-}*/
+}
 
 int
 PyFile_WriteString(const char *s, PyObject *f)
@@ -2850,54 +2901,54 @@ PyFile_WriteString(const char *s, PyObject *f)
 // an integer or long integer, which is returned as the file descriptor value.
 // -1 is returned on failure.
 
+// TODO I think that the reason this doesn't work for files because fileno() returns the wrong thing
+int PyObject_AsFileDescriptor(PyObject *o)
+{
+	int fd;
+    PyObject *meth;
 
-//int PyObject_AsFileDescriptor(PyObject *o)
-//{
-//	int fd;
-//    PyObject *meth;
-//
-//    if (PyInt_Check(o)) {
-//        fd = PyInt_AsLong(o);
-//    }
-//    else if (PyLong_Check(o)) {
-//        fd = PyLong_AsLong(o);
-//    }
-//    else if ((meth = PyObject_GetAttrString(o, "fileno")) != NULL)
-//    {
-//        PyObject *fno = PyEval_CallObject(meth, NULL);
-//        Py_DECREF(meth);
-//        if (fno == NULL)
-//            return -1;
-//
-//        if (PyInt_Check(fno)) {
-//            fd = PyInt_AsLong(fno);
-//            Py_DECREF(fno);
-//        }
-//        else if (PyLong_Check(fno)) {
-//            fd = PyLong_AsLong(fno);
-//            Py_DECREF(fno);
-//        }
-//        else {
-//            PyErr_SetString(PyExc_TypeError,
-//                            "fileno() returned a non-integer");
-//            Py_DECREF(fno);
-//            return -1;
-//        }
-//    }
-//    else {
-//        PyErr_SetString(PyExc_TypeError,
-//                        "argument must be an int, or have a fileno() method.");
-//        return -1;
-//    }
-//
-//    if (fd < 0) {
-//        PyErr_Format(PyExc_ValueError,
-//                     "file descriptor cannot be a negative integer (%i)",
-//                     fd);
-//        return -1;
-//    }
-//    return fd;
-//}
+    if (PyInt_Check(o)) {
+        fd = PyInt_AsLong(o);
+    }
+    else if (PyLong_Check(o)) {
+        fd = PyLong_AsLong(o);
+    }
+    else if ((meth = PyObject_GetAttrString(o, "fileno")) != NULL)
+    {
+        PyObject *fno = PyEval_CallObject(meth, NULL);
+        Py_DECREF(meth);
+        if (fno == NULL)
+            return -1;
+
+        if (PyInt_Check(fno)) {
+            fd = PyInt_AsLong(fno);
+            Py_DECREF(fno);
+        }
+        else if (PyLong_Check(fno)) {
+            fd = PyLong_AsLong(fno);
+            Py_DECREF(fno);
+        }
+        else {
+            PyErr_SetString(PyExc_TypeError,
+                            "fileno() returned a non-integer");
+            Py_DECREF(fno);
+            return -1;
+        }
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError,
+                        "argument must be an int, or have a fileno() method.");
+        return -1;
+    }
+
+    if (fd < 0) {
+        PyErr_Format(PyExc_ValueError,
+                     "file descriptor cannot be a negative integer (%i)",
+                     fd);
+        return -1;
+    }
+    return fd;
+}
 
 
 /* From here on we need access to the real fgets and fread */
@@ -2918,7 +2969,7 @@ PyFile_WriteString(const char *s, PyObject *f)
  Note that we need no error handling: fgets() treats error and eof
  identically.
  */
-
+/*
 char *
 Py_UniversalNewlineFgets(char *buf, int n, FILE *stream, PyObject *fobj)
 {
@@ -2996,7 +3047,7 @@ Py_UniversalNewlineFgets(char *buf, int n, FILE *stream, PyObject *fobj)
         return NULL;
     return buf;
 }
-
+*/
 /*
 // Py_UniversalNewlineFread is an fread variation that understands
 // all of \r, \n and \r\n conventions.

@@ -60,6 +60,10 @@ MakeTest(PyFile_SetBufSize);
 MakeTest(PyFile_SetEncoding);
 MakeTest(PyFile_SetEncodingAndErrors);
 MakeTest(PyFile_SoftSpace);
+MakeTest(PyFile_IncUseCount);
+MakeTest(PyFile_DecUseCount);
+MakeTest(PyObject_AsFileDescriptor);
+MakeTest(PyFile_WriteObject);
 MakeTest(tp_repr);
 MakeTest(tp_getattro);
 MakeTest(tp_setattro);
@@ -70,6 +74,7 @@ MakeTest(tp_iter);
 MakeTest(tp_iternext);
 MakeTest(tp_new);
 MakeTest(tp_init);
+MakeTest(tp_dealloc);
 // declare doc strings
 static char PyFile_docs[]= "this tests the PyFile API";
 
@@ -87,6 +92,10 @@ static PyMethodDef PyFileTestMethods[] = {
 		MapTest(PyFile_SetEncoding),
 		MapTest(PyFile_SetEncodingAndErrors),
 		MapTest(PyFile_SoftSpace),
+		MapTest(PyFile_IncUseCount),
+		MapTest(PyFile_DecUseCount),
+		MapTest(PyObject_AsFileDescriptor),
+		MapTest(PyFile_WriteObject),
 		MapTest(tp_repr),
 		MapTest(tp_getattro),
 		MapTest(tp_setattro),
@@ -97,19 +106,10 @@ static PyMethodDef PyFileTestMethods[] = {
 		MapTest(tp_iternext),
 		MapTest(tp_new),
 		MapTest(tp_init),
+		MapTest(tp_dealloc),
 		{ NULL, NULL, 0, NULL }
 
 };
-//	PyObject_GenericGetAttr,                    // tp_getattro
-//	PyObject_GenericSetAttr,                    // tp_setattro
-//    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_WEAKREFS, // tp_flags
-//    file_doc,                                   /* tp_doc */
-//	0,//offsetof(PyFileObject, weakreflist),        // tp_weaklistoffset	This may cause trouble!
-//	(getiterfunc)file_self,                     // tp_iter
-//	(iternextfunc)file_iternext,                // tp_iternext
-//	file_methods,                               // tp_methods
-//	file_memberlist,                             // tp_members
-//	file_getsetlist,                            // tp_getset
 
 
 // define functions
@@ -253,6 +253,48 @@ static PyObject* testPyFile_PyFile_SoftSpace(PyObject *self, PyObject *args){
 	return Py_BuildValue("i", PyFile_SoftSpace(Obj, newflag));
 }
 
+static PyObject* testPyFile_PyFile_IncUseCount(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	PyFile_IncUseCount((PyFileObject *)Obj);
+	return Py_BuildValue("i", 1);return NULL;
+}
+
+static PyObject* testPyFile_PyFile_DecUseCount(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	PyFile_DecUseCount((PyFileObject *)Obj);
+	return Py_BuildValue("i", 1);return NULL;
+}
+
+static PyObject* testPyFile_PyObject_AsFileDescriptor(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("i", PyObject_AsFileDescriptor(Obj));
+}
+
+static PyObject* testPyFile_PyFile_WriteObject(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	PyObject *ToPrint;
+	int flags;
+	if (!PyArg_ParseTuple(args, "OOi", &Obj, &ToPrint, &flags)) {
+		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
+		return NULL;
+	}
+	PyFile_WriteObject(ToPrint, Obj, flags);
+	//PyFile_WriteString("hi", Obj);
+	return Py_BuildValue("i", 1);
+}
+
 static PyObject* testPyFile_tp_repr(PyObject *self, PyObject *args){
 	PyObject *Obj;
 	if (!PyArg_ParseTuple(args, "O", &Obj)) {
@@ -352,6 +394,21 @@ static PyObject* testPyFile_tp_init(PyObject *self, PyObject *args){
 	Obj->ob_type->tp_init(Obj, ags, kwags);
 	return NULL;
 }
+
+static PyObject* testPyFile_tp_dealloc(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
+		return NULL;
+	}
+	Obj->ob_type->tp_dealloc(Obj);
+	// After the above Obj still seems to exist, but we should be able to trust that the PyObjFree works?
+	if(Obj){
+		return Py_BuildValue("i", 1);
+	}
+	return Py_BuildValue("i", 0);
+}
+
 //initialise module
 PyMODINIT_FUNC
 initPyFileTest(void)

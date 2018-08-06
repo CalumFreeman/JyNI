@@ -534,6 +534,8 @@ extern jmethodID pyFile_file_seek;
 extern jmethodID pyFile_file_close;
 extern jmethodID pyFile_file_toString;
 extern jfieldID pyFile_modeField;
+extern jfieldID pyFile_encodingField;
+extern jfieldID pyFile_errorsField;
 
 
 extern jclass FileIOClass;

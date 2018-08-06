@@ -171,16 +171,43 @@ class Test_PyFile(unittest.TestCase):
         self.assertTrue(pf.test_PyFile_CheckExact(self.file))
         
     def test_PyFile_IncUseCount(self):
-        raise(Exception("Not yet Implemented"))
+        pf.test_PyFile_IncUseCount(self.file)
         
     def test_PyFile_DecUseCount(self):
-        raise(Exception("Not yet Implemented"))
+        pf.test_PyFile_DecUseCount(self.file)
     
     def test_PyFile_WriteObject(self):
-        raise(Exception("Not yet Implemented"))
+        Object = 4
+        pf.test_PyFile_WriteObject(self.file, Object, 0)
+        self.file.write("\n")
+        self.file.close()
+        self.file = open(self.name, "r+")
+        self.assertEqual(self.file.read(), str(Object)+"\n")
+        self.file = open(self.name, self.mode)
+        Object = [2,3]
+        pf.test_PyFile_WriteObject(self.file, Object, 0)
+        self.file.write("\n")
+        self.file.close()
+        self.file = open(self.name, "r+")
+        self.assertEqual(self.file.read(), str(Object)+"\n")
+        self.file = open(self.name, self.mode)
+        Object = "some weird object should go here"
+        pf.test_PyFile_WriteObject(self.file, Object, 0)
+        self.file.write("\n")
+        self.file.close()
+        self.file = open(self.name, "r+")
+        self.assertEqual(self.file.read(), "\'"+str(Object)+"\'\n")
+        self.file = open(self.name, self.mode)
+    
+    def test_PyObject_AsFileDescriptor(self):
+        self.assertEqual(pf.test_PyObject_AsFileDescriptor(4), 4)
+        self.assertEqual(pf.test_PyObject_AsFileDescriptor(4.4), -1)
+        print pf.test_PyObject_AsFileDescriptor(self.file) # need to compare with actuall file descriptor!
+        self.assertFalse(True, "Not yet implemented")
       
     def test_tp_dealloc(self):
-        raise(Exception("Not yet Implemented"))
+        print pf.test_tp_dealloc(self.file)
+        self.assertFalse(True, "Not yet implemented")
         
     def test_tp_repr(self):
         self.assertEqual(str(self.file), pf.test_tp_repr(self.file))
@@ -268,6 +295,7 @@ class Test_PyFile(unittest.TestCase):
         self.assertEqual(self.file.read(), string)
     
     def test_file_fileno(self):
+        # TODO may need to change this to check it gives the file descriptor not org.python.core.io.FileIO@7523a3dc
         self.name = "/tmp/fred"
         self.mode = "+w"
         self.file = open(self.name, self.mode)
@@ -281,12 +309,21 @@ class Test_PyFile(unittest.TestCase):
         self.assertEqual(self.file.read(), string[1:])
     
     def test_file_truncate(self):
-        raise(Exception("Not yet Implemented"))
+        string = "Hello World!"
+        self.file.write(string)
+        self.file.seek(7)
+        pf.test_tp_getattro(self.file, "truncate")(8)
+        self.assertEqual(self.file.read(), string[7])
+        self.file.seek(3)
+        pf.test_tp_getattro(self.file, "truncate")()
+        self.file.seek(0)
+        self.assertEqual(self.file.read(), string[:3])
         
     def test_file_tell(self):
-        # Not sure what this is, but this checks it gets the right value on at least one occasion,
-        # this tells us that it is probably calling java correctly
-        # if the call is to the correct method and it works once then it should always work
+        # This checks where we are in the file
+        self.assertEqual(self.file.tell(), pf.test_tp_getattro(self.file, "tell")())
+        self.file.write("Hello World!")
+        self.file.seek(5)
         self.assertEqual(self.file.tell(), pf.test_tp_getattro(self.file, "tell")())
         
     def test_file_readinto(self):
@@ -370,12 +407,16 @@ class Test_PyFile(unittest.TestCase):
         self.assertEqual(self.file.isatty(), pf.test_tp_getattro(self.file, "isatty")())
 
         
-    def test_file___enter__(self):
-        self.assertFalse(True, "Not yet implemented")
+    # Possibly test together, enter and check file is valid, exit and check file is closed and done etc
+    def test_file___enter__ANDfile___exit__(self):
+        temp = pf.test_tp_getattro(self.file, "__enter__")()
+        self.assertEqual(type(temp), type(self.file))
+        self.assertEqual(temp.name, self.file.name)
+        self.assertEqual(temp.mode, self.file.mode)
+        temp.write("Hello World!")
+        pf.test_tp_getattro(temp, "__exit__")(temp, None, None)
+        self.assertTrue(temp.closed)
         
-    def test_file___exit__(self):
-        self.assertFalse(True, "Not yet implemented")
-
     
     def test_tp_init(self):
         # TODO this may be the wrong way to pass the arguments in
@@ -398,6 +439,14 @@ class Test_PyFile(unittest.TestCase):
     
 
 if __name__ == '__main__':
+    # Failing:
     #suite = unittest.TestLoader().loadTestsFromName("test_tp_init", Test_PyFile)
     #unittest.TextTestRunner(verbosity=2).run(suite)
+    #suite = unittest.TestLoader().loadTestsFromName("test_tp_iter", Test_PyFile)
+    #unittest.TextTestRunner(verbosity=2).run(suite)
+    #suite = unittest.TestLoader().loadTestsFromName("test_tp_iternext", Test_PyFile)
+    #unittest.TextTestRunner(verbosity=2).run(suite)
+    #suite = unittest.TestLoader().loadTestsFromName("test_PyObject_AsFileDescriptor", Test_PyFile)
+    #unittest.TextTestRunner(verbosity=2).run(suite)
+    # TODO: tp_free, tp_alloc, tp_dealloc, tp_weaklistoffset
     unittest.main()

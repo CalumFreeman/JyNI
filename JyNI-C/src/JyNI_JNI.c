@@ -473,6 +473,8 @@ jmethodID pyFile_file_seek;
 jmethodID pyFile_file_close;
 jmethodID pyFile_file_toString;
 jfieldID pyFile_modeField;
+jfieldID pyFile_encodingField;
+jfieldID pyFile_errorsField;
 
 jclass FileIOClass;
 jmethodID FileIO___int__;
@@ -1160,6 +1162,8 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_METH_CLASS(pyFile, write, void, string)
 	JNI_METH_CLASS(pyFile, fileno, pyObject)
 	JNI_FIELD(pyFile, mode, string)
+	JNI_FIELD(pyFile, encoding, string)
+	JNI_FIELD(pyFile, errors, string)
 
 	JNI_CLASS(pyModule)
 	JNI_CONSTRUCTOR(pyModule, byStringConstructor, string)
