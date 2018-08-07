@@ -2717,8 +2717,8 @@ PyObject *PyFile_GetAttr(PyObject *obj, PyObject *name){
 	char *Cname;
 	if(PyFile_Check(obj)){
 		Cname = PyString_AsString(name);
-		if(Cname=="fileno"){
-			return file_fileno;
+		if(!strcmp(Cname, "fileno")){
+			return &file_fileno;
 		}
 	}
 	return PyObject_GenericGetAttr(obj, name);
@@ -2743,7 +2743,7 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
-	PyFile_GetAttr,                    			// tp_getattro // TODO changing this may allow us to hook into fileno() and avoid the jython problems
+	PyObject_GenericGetAttr,                 	// tp_getattro TODO hook in here to solve fileno: PyFile_GetAttr is an incomplete attempt
 	// softspace is writable:  we must supply tp_setattro
 	PyObject_GenericSetAttr,                    // tp_setattro
     0,                                          /* tp_as_buffer */
