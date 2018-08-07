@@ -106,8 +106,9 @@ extern "C" {
  static PyObject *
  file_close(PyFileObject *f)
  {
- 	jobject jobj = JyNI_JythonPyObject_FromPyObject(f); \
- 	env(NULL);\
+ 	jobject jobj;
+ 	jobj = JyNI_JythonPyObject_FromPyObject(f);
+ 	env(NULL);
  	(*env)->CallObjectMethod(env, jobj, pyFile_file_close);
  	Py_RETURN_NONE; //I don't know what this is meant to return so it's returning none
  //    PyObject *sts = close_the_file(f);
@@ -179,6 +180,7 @@ PyFile_Name(PyObject *f)
 	jobject jfile;
 	jstring jname;
 	char *cname;
+	PyObject *pname;
 	env(NULL);
 	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
@@ -193,7 +195,7 @@ PyFile_Name(PyObject *f)
 
 	// convert the name to a c char *, put it in a PyObject and then release the string so it doesn't stay in memory
 	cname = (*env)->GetStringUTFChars(env, jname, 0);
-	PyObject *pname = Py_BuildValue("s", cname);
+	pname = Py_BuildValue("s", cname);
 	(*env)->ReleaseStringUTFChars(env, jname, cname);
 
 	// return the file
@@ -203,13 +205,15 @@ PyFile_Name(PyObject *f)
 int is_file_open(PyObject *f)
 {
 	// returns 1(true)/0(false) depending on whether the file is open or not. Use call into java to get this (file.fileno().__tojava__(FileIO.class)
+	jobject jfile;
+	jint open;
 	env(-1);
 	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
 		return -1;
 	}
-	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
-	jint open = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_is_file_open, jfile);
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	open = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_is_file_open, jfile);
 	return (int)open;
 }
 
@@ -618,12 +622,17 @@ PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
 PyObject *
 PyFile_FromString(char *name, char *mode)
 {
+	jstring jname;
+	jstring jmode;
+	jobject jfile;
+	int bufSize;
+	PyObject *pfile;
 	env(NULL);
-	jstring jname = (*env)->NewStringUTF(env, name);
-	jstring jmode = (*env)->NewStringUTF(env, mode);
-	int bufSize = 8192;// I don't understand but here is what the internet said: https://stackoverflow.com/questions/236861/how-do-you-determine-the-ideal-buffer-size-when-using-fileinputstream#237495
-	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_CSS, jname, jmode, (jint)bufSize);
-	PyObject *pfile = JyNI_PyObject_FromJythonPyObject(jfile);
+	jname = (*env)->NewStringUTF(env, name);
+	jmode = (*env)->NewStringUTF(env, mode);
+	bufSize = 8192;// I don't understand but here is what the internet said: https://stackoverflow.com/questions/236861/how-do-you-determine-the-ideal-buffer-size-when-using-fileinputstream#237495
+	jfile = (*env)->NewObject(env, pyFileClass, pyFile_CSS, jname, jmode, (jint)bufSize);
+	pfile = JyNI_PyObject_FromJythonPyObject(jfile);
 	return pfile;
 }/*
     PyFileObject *f;
@@ -692,14 +701,16 @@ PyFile_SetEncoding(PyObject *f, const char *enc)
 int
 PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* err)
 {
+	jobject jobj;
+	jstring jenc;
+	jstring jerr;
 	if (f == NULL){
 			jputs("PyFile_AsFile with NULL-pointer");
 			return -1;
 	}
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(-1);
-	jstring jenc = (*env)->NewStringUTF(env, enc);
-	jstring jerr;
+	jenc = (*env)->NewStringUTF(env, enc);
 //	if(err==NULL){ // I'm not sure if this is needed, what should errors/encoding be set to if NULL is the argument?
 //		jerr = (*env)->NewStringUTF(env, "");
 //	}
@@ -764,20 +775,23 @@ static void drop_readahead(PyFileObject *);
 static void
 file_dealloc(PyFileObject *f)
 {
-	 JyNIDebugOp(JY_NATIVE_FINALIZE, f, -1);
-	 // We will revisit that:
-	 //if (f->weakreflist != NULL)
-	 //    PyObject_ClearWeakRefs((PyObject *) f);
-	 PyObject *ret = file_close(f); // since we aren't dealling with the PyInc/DecUse we don't need to check the ref count for that. TODO we should check the ob_refcount before deallocating everything though.
-	 if (!ret) {
-	     PySys_WriteStderr("close failed in file object destructor:\n");
-	     PyErr_Print();
-	 }
-	 else {
-	     Py_DECREF(ret);
-	 }
-	 Py_TYPE(f)->tp_free(f);
-}/*
+	// JyNI implementation
+	PyObject *ret;
+	JyNIDebugOp(JY_NATIVE_FINALIZE, f, -1);
+	// We will revisit that:
+	//if (f->weakreflist != NULL)
+	//    PyObject_ClearWeakRefs((PyObject *) f);
+	ret = file_close(f); // since we aren't dealling with the PyInc/DecUse we don't need to check the ref count for that. TODO we should check the ob_refcount before deallocating everything though.
+	if (!ret) {
+	    PySys_WriteStderr("close failed in file object destructor:\n");
+	    PyErr_Print();
+	}
+	else {
+	    Py_DECREF(ret);
+	}
+	Py_TYPE(f)->tp_free(f);
+	/*
+	// Python Code:
     PyObject *ret;
     if (f->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) f);
@@ -795,67 +809,70 @@ file_dealloc(PyFileObject *f)
     Py_XDECREF(f->f_encoding);
     Py_XDECREF(f->f_errors);
     drop_readahead(f);
-    Py_TYPE(f)->tp_free((PyObject *)f);
-}*/
+    Py_TYPE(f)->tp_free((PyObject *)f);*/
+}
 
 
 static PyObject *
 file_repr(PyFileObject *f)
 {
-	jobject jobj = JyNI_JythonPyObject_FromPyObject((PyObject *)f);
+	// JyNI implementation
+	jobject jobj;
 	PyObject *pstr;
 	char *cstr;
 	jstring jstr;
+	jobj = JyNI_JythonPyObject_FromPyObject((PyObject *)f);
 	env(NULL);
 	jstr = (*env)->CallObjectMethod(env, jobj, pyFile_file_toString);
 	cstr = (*env)->GetStringUTFChars(env, jstr, NULL);
 	pstr = Py_BuildValue("s", cstr);
 	(*env)->ReleaseStringUTFChars(env, jstr, cstr);
 	return pstr;
-	// TODO memory management...
-//	env(-1);
-//	jobject jfile;
-//	jstring jmode;
-//	PyObject *f_name;
-//	PyObject *f_mode;
-//	FILE *f_fp;
-//
-//	jfile = JyNI_JythonPyObject_FromPyObject(f);
-//	jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
-//
-//	f_name = PyFile_Name(f);
-//
-//	const char *cmode = (*env)->GetStringUTFChars(env, jmode, 0);
-//	f_mode = Py_BuildValue("s", cmode);
-//	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
-//
-//	f_fp = PyFile_AsFile(f);
-//
-//	PyObject *ret = NULL;
-//    if (PyUnicode_Check(f_name)) {
-//#ifdef Py_USING_UNICODE
-//        PyObject *name = PyUnicode_AsUnicodeEscapeString(f_name);
-//        const char *name_str = name ? PyString_AsString(name) : "?";
-//        ret = PyString_FromFormat("<%s file u'%s', mode '%s' at %p>",
-//                           f_fp == NULL ? "closed" : "open",
-//                           name_str,
-//                           PyString_AsString(f_mode),
-//                           f);
-//        Py_XDECREF(name);
-//        Py_XDECREF(f_name);
-//        Py_XDECREF(f_mode);
-//        return ret;
-//#endif
-//    } else {
-//        ret = PyString_FromFormat("<%s file '%s', mode '%s' at %p>",
-//                           f_fp == NULL ? "closed" : "open",
-//                           PyString_AsString(f_name),
-//                           PyString_AsString(f_mode),
-//                           f);
-//        Py_XDECREF(f_name);
-//        Py_XDECREF(f_mode);
-//        return ret;
-//    }
+	// Python Code:
+	/*
+	env(-1);
+	jobject jfile;
+	jstring jmode;
+	PyObject *f_name;
+	PyObject *f_mode;
+	FILE *f_fp;
+
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
+
+	f_name = PyFile_Name(f);
+
+	const char *cmode = (*env)->GetStringUTFChars(env, jmode, 0);
+	f_mode = Py_BuildValue("s", cmode);
+	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
+
+	f_fp = PyFile_AsFile(f);
+
+	PyObject *ret = NULL;
+    if (PyUnicode_Check(f_name)) {
+#ifdef Py_USING_UNICODE
+        PyObject *name = PyUnicode_AsUnicodeEscapeString(f_name);
+        const char *name_str = name ? PyString_AsString(name) : "?";
+        ret = PyString_FromFormat("<%s file u'%s', mode '%s' at %p>",
+                           f_fp == NULL ? "closed" : "open",
+                           name_str,
+                           PyString_AsString(f_mode),
+                           f);
+        Py_XDECREF(name);
+        Py_XDECREF(f_name);
+        Py_XDECREF(f_mode);
+        return ret;
+#endif
+    } else {
+        ret = PyString_FromFormat("<%s file '%s', mode '%s' at %p>",
+                           f_fp == NULL ? "closed" : "open",
+                           PyString_AsString(f_name),
+                           PyString_AsString(f_mode),
+                           f);
+        Py_XDECREF(f_name);
+        Py_XDECREF(f_mode);
+        return ret;
+    }*/
 }
 
 
@@ -941,68 +958,73 @@ _portable_ftell(FILE* fp)
 */
 static PyObject *
 file_seek(PyFileObject *f, PyObject *args)
-{
+{/*
+	// JyNI implementation
+	PyObject *offobj, *off_index;
+	int whence;
+	long pos;
+	jobject jres, jobj;
 	if(!is_file_open(f)){
 		return err_closed();
 	}
 	int whence = 0;
-	PyObject *offobj, *off_index;
 	if (!PyArg_ParseTuple(args, "O|i:seek", &offobj, &whence)){
 		return NULL;
 	}
 	off_index = PyNumber_Index(offobj);
-	long pos = 0; // TODO figure out what to do with offobj to get pos as long
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	pos = 0; // TODO figure out what to do with offobj to get pos as long
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
-	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_seek, pos, whence );
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_seek, pos, whence );
 	return 0;
-//    int whence;
-//    int ret;
-//    Py_off_t offset;
-//    PyObject *offobj, *off_index;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    drop_readahead(f);
-//    whence = 0;
-//    if (!PyArg_ParseTuple(args, "O|i:seek", &offobj, &whence))
-//        return NULL;
-//    off_index = PyNumber_Index(offobj);
-//    if (!off_index) {
-//        if (!PyFloat_Check(offobj))
-//            return NULL;
-//        // Deprecated in 2.6
-//        PyErr_Clear();
-//        if (PyErr_WarnEx(PyExc_DeprecationWarning,
-//                         "integer argument expected, got float",
-//                         1) < 0)
-//            return NULL;
-//        off_index = offobj;
-//        Py_INCREF(offobj);
-//    }
-//#if !defined(HAVE_LARGEFILE_SUPPORT)
-//    offset = PyInt_AsLong(off_index);
-//#else
-//    offset = PyLong_Check(off_index) ?
-//        PyLong_AsLongLong(off_index) : PyInt_AsLong(off_index);
-//#endif
-//    Py_DECREF(off_index);
-//    if (PyErr_Occurred())
-//        return NULL;
-//
-//    FILE_BEGIN_ALLOW_THREADS(f)
-//    errno = 0;
-//    ret = _portable_fseek(f->f_fp, offset, whence);
-//    FILE_END_ALLOW_THREADS(f)
-//
-//    if (ret != 0) {
-//        PyErr_SetFromErrno(PyExc_IOError);
-//        clearerr(f->f_fp);
-//        return NULL;
-//    }
-//    f->f_skipnextlf = 0;
-//    Py_INCREF(Py_None);
-//    return Py_None;
+	// Python Code:
+    int whence;
+    int ret;
+    Py_off_t offset;
+    PyObject *offobj, *off_index;
+
+    if (f->f_fp == NULL)
+        return err_closed();
+    drop_readahead(f);
+    whence = 0;
+    if (!PyArg_ParseTuple(args, "O|i:seek", &offobj, &whence))
+        return NULL;
+    off_index = PyNumber_Index(offobj);
+    if (!off_index) {
+        if (!PyFloat_Check(offobj))
+            return NULL;
+        // Deprecated in 2.6
+        PyErr_Clear();
+        if (PyErr_WarnEx(PyExc_DeprecationWarning,
+                         "integer argument expected, got float",
+                         1) < 0)
+            return NULL;
+        off_index = offobj;
+        Py_INCREF(offobj);
+    }
+#if !defined(HAVE_LARGEFILE_SUPPORT)
+    offset = PyInt_AsLong(off_index);
+#else
+    offset = PyLong_Check(off_index) ?
+        PyLong_AsLongLong(off_index) : PyInt_AsLong(off_index);
+#endif
+    Py_DECREF(off_index);
+    if (PyErr_Occurred())
+        return NULL;
+
+    FILE_BEGIN_ALLOW_THREADS(f)
+    errno = 0;
+    ret = _portable_fseek(f->f_fp, offset, whence);
+    FILE_END_ALLOW_THREADS(f)
+
+    if (ret != 0) {
+        PyErr_SetFromErrno(PyExc_IOError);
+        clearerr(f->f_fp);
+        return NULL;
+    }
+    f->f_skipnextlf = 0;
+    Py_INCREF(Py_None);
+    return Py_None;*/
 }
 
 
@@ -1121,99 +1143,111 @@ file_truncate(PyFileObject *f, PyObject *args)
 
 static PyObject *
 file_tell(PyFileObject *f)
-{
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+{/*
+	// JyNI implementation
+	jlong jres;
+	jobject jobj;
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
-	jlong jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_tell);
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_tell);
 	return (long)jres;
+	// Python Code:
+    Py_off_t pos;
 
-//    Py_off_t pos;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    FILE_BEGIN_ALLOW_THREADS(f)
-//    errno = 0;
-//    pos = _portable_ftell(f->f_fp);
-//    FILE_END_ALLOW_THREADS(f)
-//
-//    if (pos == -1) {
-//        PyErr_SetFromErrno(PyExc_IOError);
-//        clearerr(f->f_fp);
-//        return NULL;
-//    }
-//    if (f->f_skipnextlf) {
-//        int c;
-//        c = GETC(f->f_fp);
-//        if (c == '\n') {
-//            f->f_newlinetypes |= NEWLINE_CRLF;
-//            pos++;
-//            f->f_skipnextlf = 0;
-//        } else if (c != EOF) ungetc(c, f->f_fp);
-//    }
-//#if !defined(HAVE_LARGEFILE_SUPPORT)
-//    return PyInt_FromLong(pos);
-//#else
-//    return PyLong_FromLongLong(pos);
-//#endif
+    if (f->f_fp == NULL)
+        return err_closed();
+    FILE_BEGIN_ALLOW_THREADS(f)
+    errno = 0;
+    pos = _portable_ftell(f->f_fp);
+    FILE_END_ALLOW_THREADS(f)
+
+    if (pos == -1) {
+        PyErr_SetFromErrno(PyExc_IOError);
+        clearerr(f->f_fp);
+        return NULL;
+    }
+    if (f->f_skipnextlf) {
+        int c;
+        c = GETC(f->f_fp);
+        if (c == '\n') {
+            f->f_newlinetypes |= NEWLINE_CRLF;
+            pos++;
+            f->f_skipnextlf = 0;
+        } else if (c != EOF) ungetc(c, f->f_fp);
+    }
+#if !defined(HAVE_LARGEFILE_SUPPORT)
+    return PyInt_FromLong(pos);
+#else
+    return PyLong_FromLongLong(pos);
+#endif*/
 }
 
 // Note: this should return the file descriptor not the fileno returned by jython
 static PyObject *
 file_fileno(PyFileObject *f)
 {
-	printf("Hello!");
-	fflush(stdout);
+	// JyNI implementation
+	jobject jfile;
+	jint fd;
 	if(!is_file_open(f)){
 		return err_closed();
 	}
 	env(NULL);
-	return 4;
-	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
-	jint fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
 	return PyInt_FromLong((long) fd);
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    return PyInt_FromLong((long) fileno(f->f_fp));
+	/*
+	//Python Code:
+    if (f->f_fp == NULL)
+        return err_closed();
+    return PyInt_FromLong((long) fileno(f->f_fp));*/
 }
 
 static PyObject *
 file_flush(PyFileObject *f)
-{
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+{/*
+	// JyNI implementation
+	jobject jobj;
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
 	(*env)->CallObjectMethod(env, jobj, pyFile_file_flush);
 	Py_RETURN_NONE;
-//    int res;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    FILE_BEGIN_ALLOW_THREADS(f)
-//    errno = 0;
-//    res = fflush(f->f_fp);
-//    FILE_END_ALLOW_THREADS(f)
-//    if (res != 0) {
-//        PyErr_SetFromErrno(PyExc_IOError);
-//        clearerr(f->f_fp);
-//        return NULL;
-//    }
-//    Py_INCREF(Py_None);
-//    return Py_None;
+    // Python Code:
+    int res;
+
+    if (f->f_fp == NULL)
+        return err_closed();
+    FILE_BEGIN_ALLOW_THREADS(f)
+    errno = 0;
+    res = fflush(f->f_fp);
+    FILE_END_ALLOW_THREADS(f)
+    if (res != 0) {
+        PyErr_SetFromErrno(PyExc_IOError);
+        clearerr(f->f_fp);
+        return NULL;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;*/
 }
 
 static PyObject *
 file_isatty(PyFileObject *f)
-{
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+{/*
+	// JyNI implementation
+	jobject jobj;
+	jboolean jres;
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
-	jboolean jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_isatty);
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_isatty);
 	return Py_BuildValue("p",jres); // TODO check this understands
-//    long res;
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    FILE_BEGIN_ALLOW_THREADS(f)
-//    res = isatty((int)fileno(f->f_fp));
-//    FILE_END_ALLOW_THREADS(f)
-//    return PyBool_FromLong(res);
+	// Python Code:
+    long res;
+    if (f->f_fp == NULL)
+        return err_closed();
+    FILE_BEGIN_ALLOW_THREADS(f)
+    res = isatty((int)fileno(f->f_fp));
+    FILE_END_ALLOW_THREADS(f)
+    return PyBool_FromLong(res);*/
 }
 
 
@@ -1273,124 +1307,130 @@ file_isatty(PyFileObject *f)
 
 static PyObject *
 file_read(PyFileObject *f, PyObject *args)
-{
-//	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
-//	env(NULL);
-//	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_read, -1 );
+{/*
+	// JyNI implementation
+	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_read, -1 );
 	return NULL;
-//    long bytesrequested = -1;
-//    size_t bytesread, buffersize, chunksize;
-//    PyObject *v;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    if (!f->readable)
-//        return err_mode("reading");
-//    // refuse to mix with f.next()
-//    if (f->f_buf != NULL &&
-//        (f->f_bufend - f->f_bufptr) > 0 &&
-//        f->f_buf[0] != '\0')
-//        return err_iterbuffered();
-//    if (!PyArg_ParseTuple(args, "|l:read", &bytesrequested))
-//        return NULL;
-//    if (bytesrequested < 0)
-//        buffersize = new_buffersize(f, (size_t)0);
-//    else
-//        buffersize = bytesrequested;
-//    if (buffersize > PY_SSIZE_T_MAX) {
-//        PyErr_SetString(PyExc_OverflowError,
-//    "requested number of bytes is more than a Python string can hold");
-//        return NULL;
-//    }
-//    v = PyString_FromStringAndSize((char *)NULL, buffersize);
-//    if (v == NULL)
-//        return NULL;
-//    bytesread = 0;
-//    for (;;) {
-//        FILE_BEGIN_ALLOW_THREADS(f)
-//        errno = 0;
-//        chunksize = Py_UniversalNewlineFread(BUF(v) + bytesread,
-//                  buffersize - bytesread, f->f_fp, (PyObject *)f);
-//        FILE_END_ALLOW_THREADS(f)
-//        if (chunksize == 0) {
-//            if (!ferror(f->f_fp))
-//                break;
-//            clearerr(f->f_fp);
-//            // When in non-blocking mode, data shouldn't
-//            // be discarded if a blocking signal was
-//            // received. That will also happen if
-//            // chunksize != 0, but bytesread < buffersize.
-//            if (bytesread > 0 && BLOCKED_ERRNO(errno))
-//                break;
-//            PyErr_SetFromErrno(PyExc_IOError);
-//            Py_DECREF(v);
-//            return NULL;
-//        }
-//        bytesread += chunksize;
-//        if (bytesread < buffersize) {
-//            clearerr(f->f_fp);
-//            break;
-//        }
-//        if (bytesrequested < 0) {
-//            buffersize = new_buffersize(f, buffersize);
-//            if (_PyString_Resize(&v, buffersize) < 0)
-//                return NULL;
-//        } else {
-//            // Got what was requested.
-//            break;
-//        }
-//    }
-//    if (bytesread != buffersize && _PyString_Resize(&v, bytesread))
-//        return NULL;
-//    return v;
+	// Python Code:
+    long bytesrequested = -1;
+    size_t bytesread, buffersize, chunksize;
+    PyObject *v;
+
+    if (f->f_fp == NULL)
+        return err_closed();
+    if (!f->readable)
+        return err_mode("reading");
+    // refuse to mix with f.next()
+    if (f->f_buf != NULL &&
+        (f->f_bufend - f->f_bufptr) > 0 &&
+        f->f_buf[0] != '\0')
+        return err_iterbuffered();
+    if (!PyArg_ParseTuple(args, "|l:read", &bytesrequested))
+        return NULL;
+    if (bytesrequested < 0)
+        buffersize = new_buffersize(f, (size_t)0);
+    else
+        buffersize = bytesrequested;
+    if (buffersize > PY_SSIZE_T_MAX) {
+        PyErr_SetString(PyExc_OverflowError,
+    "requested number of bytes is more than a Python string can hold");
+        return NULL;
+    }
+    v = PyString_FromStringAndSize((char *)NULL, buffersize);
+    if (v == NULL)
+        return NULL;
+    bytesread = 0;
+    for (;;) {
+        FILE_BEGIN_ALLOW_THREADS(f)
+        errno = 0;
+        chunksize = Py_UniversalNewlineFread(BUF(v) + bytesread,
+                  buffersize - bytesread, f->f_fp, (PyObject *)f);
+        FILE_END_ALLOW_THREADS(f)
+        if (chunksize == 0) {
+            if (!ferror(f->f_fp))
+                break;
+            clearerr(f->f_fp);
+            // When in non-blocking mode, data shouldn't
+            // be discarded if a blocking signal was
+            // received. That will also happen if
+            // chunksize != 0, but bytesread < buffersize.
+            if (bytesread > 0 && BLOCKED_ERRNO(errno))
+                break;
+            PyErr_SetFromErrno(PyExc_IOError);
+            Py_DECREF(v);
+            return NULL;
+        }
+        bytesread += chunksize;
+        if (bytesread < buffersize) {
+            clearerr(f->f_fp);
+            break;
+        }
+        if (bytesrequested < 0) {
+            buffersize = new_buffersize(f, buffersize);
+            if (_PyString_Resize(&v, buffersize) < 0)
+                return NULL;
+        } else {
+            // Got what was requested.
+            break;
+        }
+    }
+    if (bytesread != buffersize && _PyString_Resize(&v, bytesread))
+        return NULL;
+    return v;*/
 }
 
 static PyObject *
 file_readinto(PyFileObject *f, PyObject *args)
-{
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
-	jobject jbuf = JyNI_JythonPyObject_FromPyObject(args); // TODO get this to work, file_write converts it to a string first but this won't work here
+{/*
+	// JyNI implementation
+	jobject jobj, jbuf;
+	jint jres;
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
+	jbuf = JyNI_JythonPyObject_FromPyObject(args); // TODO get this to work, file_write converts it to a string first but this won't work here
 	env(NULL);
-	jint jres = (*env)->CallIntMethod(env, jobj, pyFile_file_readinto, jbuf);
+	jres = (*env)->CallIntMethod(env, jobj, pyFile_file_readinto, jbuf);
 	return Py_BuildValue("i", jres);
-//    char *ptr;
-//    Py_ssize_t ntodo;
-//    Py_ssize_t ndone, nnow;
-//    Py_buffer pbuf;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    if (!f->readable)
-//        return err_mode("reading");
-//    // refuse to mix with f.next()
-//    if (f->f_buf != NULL &&
-//        (f->f_bufend - f->f_bufptr) > 0 &&
-//        f->f_buf[0] != '\0')
-//        return err_iterbuffered();
-//    if (!PyArg_ParseTuple(args, "w*", &pbuf))
-//        return NULL;
-//    ptr = pbuf.buf;
-//    ntodo = pbuf.len;
-//    ndone = 0;
-//    while (ntodo > 0) {
-//        FILE_BEGIN_ALLOW_THREADS(f)
-//        errno = 0;
-//        nnow = Py_UniversalNewlineFread(ptr+ndone, ntodo, f->f_fp,
-//                                        (PyObject *)f);
-//        FILE_END_ALLOW_THREADS(f)
-//        if (nnow == 0) {
-//            if (!ferror(f->f_fp))
-//                break;
-//            PyErr_SetFromErrno(PyExc_IOError);
-//            clearerr(f->f_fp);
-//            PyBuffer_Release(&pbuf);
-//            return NULL;
-//        }
-//        ndone += nnow;
-//        ntodo -= nnow;
-//    }
-//    PyBuffer_Release(&pbuf);
-//    return PyInt_FromSsize_t(ndone);
+	//Python Code:
+    char *ptr;
+    Py_ssize_t ntodo;
+    Py_ssize_t ndone, nnow;
+    Py_buffer pbuf;
+
+    if (f->f_fp == NULL)
+        return err_closed();
+    if (!f->readable)
+        return err_mode("reading");
+    // refuse to mix with f.next()
+    if (f->f_buf != NULL &&
+        (f->f_bufend - f->f_bufptr) > 0 &&
+        f->f_buf[0] != '\0')
+        return err_iterbuffered();
+    if (!PyArg_ParseTuple(args, "w*", &pbuf))
+        return NULL;
+    ptr = pbuf.buf;
+    ntodo = pbuf.len;
+    ndone = 0;
+    while (ntodo > 0) {
+        FILE_BEGIN_ALLOW_THREADS(f)
+        errno = 0;
+        nnow = Py_UniversalNewlineFread(ptr+ndone, ntodo, f->f_fp,
+                                        (PyObject *)f);
+        FILE_END_ALLOW_THREADS(f)
+        if (nnow == 0) {
+            if (!ferror(f->f_fp))
+                break;
+            PyErr_SetFromErrno(PyExc_IOError);
+            clearerr(f->f_fp);
+            PyBuffer_Release(&pbuf);
+            return NULL;
+        }
+        ndone += nnow;
+        ntodo -= nnow;
+    }
+    PyBuffer_Release(&pbuf);
+    return PyInt_FromSsize_t(ndone);*/
 }
 /*
 // **************************************************************************
@@ -1722,14 +1762,17 @@ get_line(PyFileObject *f, int n)
 PyObject *
 PyFile_GetLine(PyObject *f, int n)
 {
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	// JyNI implementation
+	jobject jobj, jres;
+	PyObject *res;
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
-	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, n);
-	PyObject *res = JyNI_PyObject_FromJythonPyObject(jres); // may require code from file_repr if this doesn't work
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, n);
+	res = JyNI_PyObject_FromJythonPyObject(jres); // may require code from file_repr if this doesn't work
 	//char *x = PyString_AsString(res); // TODO WHY! this doesn't make any sense but is the only way to make it work!
 	return res;// x;
-}
-/*
+	/*
+	// Python Code:
     PyObject *result;
 
     if (f == NULL) {
@@ -1821,371 +1864,383 @@ PyFile_GetLine(PyObject *f, int n)
         }
     }
 #endif
-    return result;
+    return result;*/
 }
-*/
+
 // Python method
 
 static PyObject *
 file_readline(PyFileObject *f, PyObject *args)
-{
-	jobject jargs = JyNI_JythonPyObject_FromPyObject(args); // TODO likely to fail, this should really somehow have an int drawn out of it
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+{/*
+	// JyNI implementation
+	jobject jargs, jobj, jres;
+	jargs = JyNI_JythonPyObject_FromPyObject(args); // TODO likely to fail, this should really somehow have an int drawn out of it
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
-	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, jargs);
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, jargs);
 	return JyNI_PyObject_FromJythonPyObject(jres); // may require code from file_repr if this doesn't work
-//    int n = -1;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    if (!f->readable)
-//        return err_mode("reading");
-//    // refuse to mix with f.next()
-//    if (f->f_buf != NULL &&
-//        (f->f_bufend - f->f_bufptr) > 0 &&
-//        f->f_buf[0] != '\0')
-//        return err_iterbuffered();
-//    if (!PyArg_ParseTuple(args, "|i:readline", &n))
-//        return NULL;
-//    if (n == 0)
-//        return PyString_FromString("");
-//    if (n < 0)
-//        n = 0;
-//    return get_line(f, n);
+	// Python Code:
+    int n = -1;
+
+    if (f->f_fp == NULL)
+        return err_closed();
+    if (!f->readable)
+        return err_mode("reading");
+    // refuse to mix with f.next()
+    if (f->f_buf != NULL &&
+        (f->f_bufend - f->f_bufptr) > 0 &&
+        f->f_buf[0] != '\0')
+        return err_iterbuffered();
+    if (!PyArg_ParseTuple(args, "|i:readline", &n))
+        return NULL;
+    if (n == 0)
+        return PyString_FromString("");
+    if (n < 0)
+        n = 0;
+    return get_line(f, n);*/
 }
 
 static PyObject *
 file_readlines(PyFileObject *f, PyObject *args)
-{
-	jobject jargs = JyNI_JythonPyObject_FromPyObject(args); // TODO likely to fail, this should really somehow have an int drawn out of it
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+{/*
+	// JyNI implementation
+	jobject jargs, jobj, jres;
+	jargs = JyNI_JythonPyObject_FromPyObject(args); // TODO likely to fail, this should really somehow have an int drawn out of it
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
-	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readlines, jargs);
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readlines, jargs);
 	return JyNI_PyObject_FromJythonPyObject(jres); // may require code from file_repr if this doesn't work
-//    long sizehint = 0;
-//    PyObject *list = NULL;
-//    PyObject *line;
-//    char small_buffer[SMALLCHUNK];
-//    char *buffer = small_buffer;
-//    size_t buffersize = SMALLCHUNK;
-//    PyObject *big_buffer = NULL;
-//    size_t nfilled = 0;
-//    size_t nread;
-//    size_t totalread = 0;
-//    char *p, *q, *end;
-//    int err;
-//    int shortread = 0;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    if (!f->readable)
-//        return err_mode("reading");
-//    // refuse to mix with f.next()
-//    if (f->f_buf != NULL &&
-//        (f->f_bufend - f->f_bufptr) > 0 &&
-//        f->f_buf[0] != '\0')
-//        return err_iterbuffered();
-//    if (!PyArg_ParseTuple(args, "|l:readlines", &sizehint))
-//        return NULL;
-//    if ((list = PyList_New(0)) == NULL)
-//        return NULL;
-//    for (;;) {
-//        if (shortread)
-//            nread = 0;
-//        else {
-//            FILE_BEGIN_ALLOW_THREADS(f)
-//            errno = 0;
-//            nread = Py_UniversalNewlineFread(buffer+nfilled,
-//                buffersize-nfilled, f->f_fp, (PyObject *)f);
-//            FILE_END_ALLOW_THREADS(f)
-//            shortread = (nread < buffersize-nfilled);
-//        }
-//        if (nread == 0) {
-//            sizehint = 0;
-//            if (!ferror(f->f_fp))
-//                break;
-//            PyErr_SetFromErrno(PyExc_IOError);
-//            clearerr(f->f_fp);
-//            goto error;
-//        }
-//        totalread += nread;
-//        p = (char *)memchr(buffer+nfilled, '\n', nread);
-//        if (p == NULL) {
-//            // Need a larger buffer to fit this line
-//            nfilled += nread;
-//            buffersize *= 2;
-//            if (buffersize > PY_SSIZE_T_MAX) {
-//                PyErr_SetString(PyExc_OverflowError,
-//                "line is longer than a Python string can hold");
-//                goto error;
-//            }
-//            if (big_buffer == NULL) {
-//                // Create the big buffer
-//                big_buffer = PyString_FromStringAndSize(
-//                    NULL, buffersize);
-//                if (big_buffer == NULL)
-//                    goto error;
-//                buffer = PyString_AS_STRING(big_buffer);
-//                memcpy(buffer, small_buffer, nfilled);
-//            }
-//            else {
-//                // Grow the big buffer
-//                if ( _PyString_Resize(&big_buffer, buffersize) < 0 )
-//                    goto error;
-//                buffer = PyString_AS_STRING(big_buffer);
-//            }
-//            continue;
-//        }
-//        end = buffer+nfilled+nread;
-//        q = buffer;
-//        do {
-//            // Process complete lines
-//            p++;
-//            line = PyString_FromStringAndSize(q, p-q);
-//            if (line == NULL)
-//                goto error;
-//            err = PyList_Append(list, line);
-//            Py_DECREF(line);
-//            if (err != 0)
-//                goto error;
-//            q = p;
-//            p = (char *)memchr(q, '\n', end-q);
-//        } while (p != NULL);
-//        // Move the remaining incomplete line to the start
-//        nfilled = end-q;
-//        memmove(buffer, q, nfilled);
-//        if (sizehint > 0)
-//            if (totalread >= (size_t)sizehint)
-//                break;
-//    }
-//    if (nfilled != 0) {
-//        // Partial last line
-//        line = PyString_FromStringAndSize(buffer, nfilled);
-//        if (line == NULL)
-//            goto error;
-//        if (sizehint > 0) {
-//            // Need to complete the last line
-//            PyObject *rest = get_line(f, 0);
-//            if (rest == NULL) {
-//                Py_DECREF(line);
-//                goto error;
-//            }
-//            PyString_Concat(&line, rest);
-//            Py_DECREF(rest);
-//            if (line == NULL)
-//                goto error;
-//        }
-//        err = PyList_Append(list, line);
-//        Py_DECREF(line);
-//        if (err != 0)
-//            goto error;
-//    }
-//
-//cleanup:
-//    Py_XDECREF(big_buffer);
-//    return list;
-//
-//error:
-//    Py_CLEAR(list);
-//    goto cleanup;
+	// Python Code:
+    long sizehint = 0;
+    PyObject *list = NULL;
+    PyObject *line;
+    char small_buffer[SMALLCHUNK];
+    char *buffer = small_buffer;
+    size_t buffersize = SMALLCHUNK;
+    PyObject *big_buffer = NULL;
+    size_t nfilled = 0;
+    size_t nread;
+    size_t totalread = 0;
+    char *p, *q, *end;
+    int err;
+    int shortread = 0;
+
+    if (f->f_fp == NULL)
+        return err_closed();
+    if (!f->readable)
+        return err_mode("reading");
+    // refuse to mix with f.next()
+    if (f->f_buf != NULL &&
+        (f->f_bufend - f->f_bufptr) > 0 &&
+        f->f_buf[0] != '\0')
+        return err_iterbuffered();
+    if (!PyArg_ParseTuple(args, "|l:readlines", &sizehint))
+        return NULL;
+    if ((list = PyList_New(0)) == NULL)
+        return NULL;
+    for (;;) {
+        if (shortread)
+            nread = 0;
+        else {
+            FILE_BEGIN_ALLOW_THREADS(f)
+            errno = 0;
+            nread = Py_UniversalNewlineFread(buffer+nfilled,
+                buffersize-nfilled, f->f_fp, (PyObject *)f);
+            FILE_END_ALLOW_THREADS(f)
+            shortread = (nread < buffersize-nfilled);
+        }
+        if (nread == 0) {
+            sizehint = 0;
+            if (!ferror(f->f_fp))
+                break;
+            PyErr_SetFromErrno(PyExc_IOError);
+            clearerr(f->f_fp);
+            goto error;
+        }
+        totalread += nread;
+        p = (char *)memchr(buffer+nfilled, '\n', nread);
+        if (p == NULL) {
+            // Need a larger buffer to fit this line
+            nfilled += nread;
+            buffersize *= 2;
+            if (buffersize > PY_SSIZE_T_MAX) {
+                PyErr_SetString(PyExc_OverflowError,
+                "line is longer than a Python string can hold");
+                goto error;
+            }
+            if (big_buffer == NULL) {
+                // Create the big buffer
+                big_buffer = PyString_FromStringAndSize(
+                    NULL, buffersize);
+                if (big_buffer == NULL)
+                    goto error;
+                buffer = PyString_AS_STRING(big_buffer);
+                memcpy(buffer, small_buffer, nfilled);
+            }
+            else {
+                // Grow the big buffer
+                if ( _PyString_Resize(&big_buffer, buffersize) < 0 )
+                    goto error;
+                buffer = PyString_AS_STRING(big_buffer);
+            }
+            continue;
+        }
+        end = buffer+nfilled+nread;
+        q = buffer;
+        do {
+            // Process complete lines
+            p++;
+            line = PyString_FromStringAndSize(q, p-q);
+            if (line == NULL)
+                goto error;
+            err = PyList_Append(list, line);
+            Py_DECREF(line);
+            if (err != 0)
+                goto error;
+            q = p;
+            p = (char *)memchr(q, '\n', end-q);
+        } while (p != NULL);
+        // Move the remaining incomplete line to the start
+        nfilled = end-q;
+        memmove(buffer, q, nfilled);
+        if (sizehint > 0)
+            if (totalread >= (size_t)sizehint)
+                break;
+    }
+    if (nfilled != 0) {
+        // Partial last line
+        line = PyString_FromStringAndSize(buffer, nfilled);
+        if (line == NULL)
+            goto error;
+        if (sizehint > 0) {
+            // Need to complete the last line
+            PyObject *rest = get_line(f, 0);
+            if (rest == NULL) {
+                Py_DECREF(line);
+                goto error;
+            }
+            PyString_Concat(&line, rest);
+            Py_DECREF(rest);
+            if (line == NULL)
+                goto error;
+        }
+        err = PyList_Append(list, line);
+        Py_DECREF(line);
+        if (err != 0)
+            goto error;
+    }
+
+cleanup:
+    Py_XDECREF(big_buffer);
+    return list;
+
+error:
+    Py_CLEAR(list);
+    goto cleanup;*/
 }
 
 static PyObject *
 file_write(PyFileObject *f, PyObject *args)
-{
-	jobject jargs = JyNI_JythonPyObject_FromPyObject(PyObject_Repr(args));
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+{/*
+	// JyNI implementation
+	jobject jargs, jobj;
+	jargs = JyNI_JythonPyObject_FromPyObject(PyObject_Repr(args));
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
 	(*env)->CallObjectMethod(env, jobj, pyFile_file_write, jargs );
 	Py_RETURN_NONE;
-//    Py_buffer pbuf;
-//    const char *s;
-//    Py_ssize_t n, n2;
-//    PyObject *encoded = NULL;
-//
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    if (!f->writable)
-//        return err_mode("writing");
-//    if (f->f_binary) {
-//        if (!PyArg_ParseTuple(args, "s*", &pbuf))
-//            return NULL;
-//        s = pbuf.buf;
-//        n = pbuf.len;
-//    }
-//    else {
-//        const char *encoding, *errors;
-//        PyObject *text;
-//        if (!PyArg_ParseTuple(args, "O", &text))
-//            return NULL;
-//
-//        if (PyString_Check(text)) {
-//            s = PyString_AS_STRING(text);
-//            n = PyString_GET_SIZE(text);
-//        } else if (PyUnicode_Check(text)) {
-//            if (f->f_encoding != Py_None)
-//                encoding = PyString_AS_STRING(f->f_encoding);
-//            else
-//                encoding = PyUnicode_GetDefaultEncoding();
-//            if (f->f_errors != Py_None)
-//                errors = PyString_AS_STRING(f->f_errors);
-//            else
-//                errors = "strict";
-//            encoded = PyUnicode_AsEncodedString(text, encoding, errors);
-//            if (encoded == NULL)
-//                return NULL;
-//            s = PyString_AS_STRING(encoded);
-//            n = PyString_GET_SIZE(encoded);
-//        } else {
-//            if (PyObject_AsCharBuffer(text, &s, &n))
-//                return NULL;
-//        }
-//    }
-//    f->f_softspace = 0;
-//    FILE_BEGIN_ALLOW_THREADS(f)
-//    errno = 0;
-//    n2 = fwrite(s, 1, n, f->f_fp);
-//    FILE_END_ALLOW_THREADS(f)
-//    Py_XDECREF(encoded);
-//    if (f->f_binary)
-//        PyBuffer_Release(&pbuf);
-//    if (n2 != n) {
-//        PyErr_SetFromErrno(PyExc_IOError);
-//        clearerr(f->f_fp);
-//        return NULL;
-//    }
-//    Py_INCREF(Py_None);
-//    return Py_None;
+	// Python Code:
+    Py_buffer pbuf;
+    const char *s;
+    Py_ssize_t n, n2;
+    PyObject *encoded = NULL;
+
+    if (f->f_fp == NULL)
+        return err_closed();
+    if (!f->writable)
+        return err_mode("writing");
+    if (f->f_binary) {
+        if (!PyArg_ParseTuple(args, "s*", &pbuf))
+            return NULL;
+        s = pbuf.buf;
+        n = pbuf.len;
+    }
+    else {
+        const char *encoding, *errors;
+        PyObject *text;
+        if (!PyArg_ParseTuple(args, "O", &text))
+            return NULL;
+
+        if (PyString_Check(text)) {
+            s = PyString_AS_STRING(text);
+            n = PyString_GET_SIZE(text);
+        } else if (PyUnicode_Check(text)) {
+            if (f->f_encoding != Py_None)
+                encoding = PyString_AS_STRING(f->f_encoding);
+            else
+                encoding = PyUnicode_GetDefaultEncoding();
+            if (f->f_errors != Py_None)
+                errors = PyString_AS_STRING(f->f_errors);
+            else
+                errors = "strict";
+            encoded = PyUnicode_AsEncodedString(text, encoding, errors);
+            if (encoded == NULL)
+                return NULL;
+            s = PyString_AS_STRING(encoded);
+            n = PyString_GET_SIZE(encoded);
+        } else {
+            if (PyObject_AsCharBuffer(text, &s, &n))
+                return NULL;
+        }
+    }
+    f->f_softspace = 0;
+    FILE_BEGIN_ALLOW_THREADS(f)
+    errno = 0;
+    n2 = fwrite(s, 1, n, f->f_fp);
+    FILE_END_ALLOW_THREADS(f)
+    Py_XDECREF(encoded);
+    if (f->f_binary)
+        PyBuffer_Release(&pbuf);
+    if (n2 != n) {
+        PyErr_SetFromErrno(PyExc_IOError);
+        clearerr(f->f_fp);
+        return NULL;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;*/
 }
 
 static PyObject *
 file_writelines(PyFileObject *f, PyObject *seq)
-{
-	jobject jseq = JyNI_JythonPyObject_FromPyObject(seq);// TODO VERY likely to fail!
-	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+{/*
+	// JyNI implementation
+	jobject jseq, jobj;
+	jseq = JyNI_JythonPyObject_FromPyObject(seq);// TODO VERY likely to fail!
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
 	(*env)->CallObjectMethod(env, jobj, pyFile_file_writelines, jseq);
 	Py_RETURN_NONE;
-//#define CHUNKSIZE 1000
-//    PyObject *list, *line;
-//    PyObject *it;       // iter(seq)
-//    PyObject *result;
-//    int index, islist;
-//    Py_ssize_t i, j, nwritten, len;
-//
-//    assert(seq != NULL);
-//    if (f->f_fp == NULL)
-//        return err_closed();
-//    if (!f->writable)
-//        return err_mode("writing");
-//
-//    result = NULL;
-//    list = NULL;
-//    islist = PyList_Check(seq);
-//    if  (islist)
-//        it = NULL;
-//    else {
-//        it = PyObject_GetIter(seq);
-//        if (it == NULL) {
-//            PyErr_SetString(PyExc_TypeError,
-//                "writelines() requires an iterable argument");
-//            return NULL;
-//        }
-//        // From here on, fail by going to error, to reclaim "it".
-//        list = PyList_New(CHUNKSIZE);
-//        if (list == NULL)
-//            goto error;
-//    }
-//
-//    // Strategy: slurp CHUNKSIZE lines into a private list,
-//    // checking that they are all strings, then write that list
-//    // without holding the interpreter lock, then come back for more.
-//    for (index = 0; ; index += CHUNKSIZE) {
-//        if (islist) {
-//            Py_XDECREF(list);
-//            list = PyList_GetSlice(seq, index, index+CHUNKSIZE);
-//            if (list == NULL)
-//                goto error;
-//            j = PyList_GET_SIZE(list);
-//        }
-//        else {
-//            for (j = 0; j < CHUNKSIZE; j++) {
-//                line = PyIter_Next(it);
-//                if (line == NULL) {
-//                    if (PyErr_Occurred())
-//                        goto error;
-//                    break;
-//                }
-//                PyList_SetItem(list, j, line);
-//            }
-//            // The iterator might have closed the file on us.
-//            if (f->f_fp == NULL) {
-//                err_closed();
-//                goto error;
-//            }
-//        }
-//        if (j == 0)
-//            break;
-//
-//        // Check that all entries are indeed strings. If not,
-//        // apply the same rules as for file.write() and
-//        // convert the results to strings. This is slow, but
-//        // seems to be the only way since all conversion APIs
-//        // could potentially execute Python code.
-//        for (i = 0; i < j; i++) {
-//            PyObject *v = PyList_GET_ITEM(list, i);
-//            if (!PyString_Check(v)) {
-//                const char *buffer;
-//                if (((f->f_binary &&
-//                      PyObject_AsReadBuffer(v,
-//                          (const void**)&buffer,
-//                                        &len)) ||
-//                     PyObject_AsCharBuffer(v,
-//                                           &buffer,
-//                                           &len))) {
-//                    PyErr_SetString(PyExc_TypeError,
-//            "writelines() argument must be a sequence of strings");
-//                            goto error;
-//                }
-//                line = PyString_FromStringAndSize(buffer,
-//                                                  len);
-//                if (line == NULL)
-//                    goto error;
-//                Py_DECREF(v);
-//                PyList_SET_ITEM(list, i, line);
-//            }
-//        }
-//
-//        // Since we are releasing the global lock, the
-//        // following code may *not* execute Python code.
-//        f->f_softspace = 0;
-//        FILE_BEGIN_ALLOW_THREADS(f)
-//        errno = 0;
-//        for (i = 0; i < j; i++) {
-//            line = PyList_GET_ITEM(list, i);
-//            len = PyString_GET_SIZE(line);
-//            nwritten = fwrite(PyString_AS_STRING(line),
-//                              1, len, f->f_fp);
-//            if (nwritten != len) {
-//                FILE_ABORT_ALLOW_THREADS(f)
-//                PyErr_SetFromErrno(PyExc_IOError);
-//                clearerr(f->f_fp);
-//                goto error;
-//            }
-//        }
-//        FILE_END_ALLOW_THREADS(f)
-//
-//        if (j < CHUNKSIZE)
-//            break;
-//    }
-//
-//    Py_INCREF(Py_None);
-//    result = Py_None;
-//  error:
-//    Py_XDECREF(list);
-//    Py_XDECREF(it);
-//    return result;
-//#undef CHUNKSIZE
+	// Python Code:
+#define CHUNKSIZE 1000
+    PyObject *list, *line;
+    PyObject *it;       // iter(seq)
+    PyObject *result;
+    int index, islist;
+    Py_ssize_t i, j, nwritten, len;
+
+    assert(seq != NULL);
+    if (f->f_fp == NULL)
+        return err_closed();
+    if (!f->writable)
+        return err_mode("writing");
+
+    result = NULL;
+    list = NULL;
+    islist = PyList_Check(seq);
+    if  (islist)
+        it = NULL;
+    else {
+        it = PyObject_GetIter(seq);
+        if (it == NULL) {
+            PyErr_SetString(PyExc_TypeError,
+                "writelines() requires an iterable argument");
+            return NULL;
+        }
+        // From here on, fail by going to error, to reclaim "it".
+        list = PyList_New(CHUNKSIZE);
+        if (list == NULL)
+            goto error;
+    }
+
+    // Strategy: slurp CHUNKSIZE lines into a private list,
+    // checking that they are all strings, then write that list
+    // without holding the interpreter lock, then come back for more.
+    for (index = 0; ; index += CHUNKSIZE) {
+        if (islist) {
+            Py_XDECREF(list);
+            list = PyList_GetSlice(seq, index, index+CHUNKSIZE);
+            if (list == NULL)
+                goto error;
+            j = PyList_GET_SIZE(list);
+        }
+        else {
+            for (j = 0; j < CHUNKSIZE; j++) {
+                line = PyIter_Next(it);
+                if (line == NULL) {
+                    if (PyErr_Occurred())
+                        goto error;
+                    break;
+                }
+                PyList_SetItem(list, j, line);
+            }
+            // The iterator might have closed the file on us.
+            if (f->f_fp == NULL) {
+                err_closed();
+                goto error;
+            }
+        }
+        if (j == 0)
+            break;
+
+        // Check that all entries are indeed strings. If not,
+        // apply the same rules as for file.write() and
+        // convert the results to strings. This is slow, but
+        // seems to be the only way since all conversion APIs
+        // could potentially execute Python code.
+        for (i = 0; i < j; i++) {
+            PyObject *v = PyList_GET_ITEM(list, i);
+            if (!PyString_Check(v)) {
+                const char *buffer;
+                if (((f->f_binary &&
+                      PyObject_AsReadBuffer(v,
+                          (const void**)&buffer,
+                                        &len)) ||
+                     PyObject_AsCharBuffer(v,
+                                           &buffer,
+                                           &len))) {
+                    PyErr_SetString(PyExc_TypeError,
+            "writelines() argument must be a sequence of strings");
+                            goto error;
+                }
+                line = PyString_FromStringAndSize(buffer,
+                                                  len);
+                if (line == NULL)
+                    goto error;
+                Py_DECREF(v);
+                PyList_SET_ITEM(list, i, line);
+            }
+        }
+
+        // Since we are releasing the global lock, the
+        // following code may *not* execute Python code.
+        f->f_softspace = 0;
+        FILE_BEGIN_ALLOW_THREADS(f)
+        errno = 0;
+        for (i = 0; i < j; i++) {
+            line = PyList_GET_ITEM(list, i);
+            len = PyString_GET_SIZE(line);
+            nwritten = fwrite(PyString_AS_STRING(line),
+                              1, len, f->f_fp);
+            if (nwritten != len) {
+                FILE_ABORT_ALLOW_THREADS(f)
+                PyErr_SetFromErrno(PyExc_IOError);
+                clearerr(f->f_fp);
+                goto error;
+            }
+        }
+        FILE_END_ALLOW_THREADS(f)
+
+        if (j < CHUNKSIZE)
+            break;
+    }
+
+    Py_INCREF(Py_None);
+    result = Py_None;
+  error:
+    Py_XDECREF(list);
+    Py_XDECREF(it);
+    return result;
+#undef CHUNKSIZE*/
 }
 
 static PyObject *
@@ -2199,28 +2254,30 @@ file_self(PyFileObject *f)
 
 static PyObject *
 file_xreadlines(PyFileObject *f)
-{
+{/*
     if (PyErr_WarnPy3k("f.xreadlines() not supported in 3.x, "
                        "try 'for line in f' instead", 1) < 0)
            return NULL;
-    return file_self(f);
+    return file_self(f);*/
 }
 
 // This is to do with context managers, in the case of files it should just close the file
 static PyObject *
 file_exit(PyObject *f, PyObject *args)
-{
+{/*
+	// JyNI implementation
 	file_close((PyFileObject*)f);
 	Py_RETURN_NONE;
-//    PyObject *ret = PyObject_CallMethod(f, "close", NULL);
-//    if (!ret)
-//        // If error occurred, pass through
-//        return NULL;
-//    Py_DECREF(ret);
-//    // We cannot return the result of close since a true
-//    // value will be interpreted as "yes, swallow the
-//    // exception if one was raised inside the with block".
-//    Py_RETURN_NONE;
+    // Python Code:
+    PyObject *ret = PyObject_CallMethod(f, "close", NULL);
+    if (!ret)
+        // If error occurred, pass through
+        return NULL;
+    Py_DECREF(ret);
+    // We cannot return the result of close since a true
+    // value will be interpreted as "yes, swallow the
+    // exception if one was raised inside the with block".
+    Py_RETURN_NONE;*/
 }
 
 PyDoc_STRVAR(readline_doc,
@@ -2656,6 +2713,17 @@ PyDoc_STR(
 "'U' cannot be combined with 'w' or '+' mode.\n"
 );
 
+PyObject *PyFile_GetAttr(PyObject *obj, PyObject *name){
+	char *Cname;
+	if(PyFile_Check(obj)){
+		Cname = PyString_AsString(name);
+		if(Cname=="fileno"){
+			return file_fileno;
+		}
+	}
+	return PyObject_GenericGetAttr(obj, name);
+}
+
 // TODO PyObject_AsFileDescriptor
 // TODO test everything!
 PyTypeObject PyFile_Type = {
@@ -2675,7 +2743,7 @@ PyTypeObject PyFile_Type = {
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
-	PyObject_GenericGetAttr,                    // tp_getattro // TODO changing this may allow us to hook into fileno() and avoid the jython problems
+	PyFile_GetAttr,                    			// tp_getattro // TODO changing this may allow us to hook into fileno() and avoid the jython problems
 	// softspace is writable:  we must supply tp_setattro
 	PyObject_GenericSetAttr,                    // tp_setattro
     0,                                          /* tp_as_buffer */
@@ -2700,6 +2768,7 @@ PyTypeObject PyFile_Type = {
     file_new,                                   // tp_new
 	PyObject_Free,								// tp_free
 };
+
 
 /*
 PyTypeObject PyFile_Type = {
