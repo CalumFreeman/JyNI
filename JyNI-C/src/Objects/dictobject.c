@@ -1349,15 +1349,39 @@ dict_repr(PyDictObject *mp)
 //	return result;
 }
 
-//static Py_ssize_t
-//dict_length(PyDictObject *mp)
-//{
-//	return mp->ma_used;
-//}
-//
-//static PyObject *
-//dict_subscript(PyDictObject *mp, register PyObject *key)
-//{
+static Py_ssize_t
+dict_length(PyDictObject *mp)
+{
+	jobject jmp = JyNI_JythonPyObject_FromPyObject(mp);
+	env(-1);
+	jint res = (*env)->CallIntMethod(env, jmp, pyDict___len__);
+	return (Py_ssize_t)(int)res;
+	//Python Code:
+	//return mp->ma_used;
+}
+
+static PyObject *
+dict_subscript(PyDictObject *mp, register PyObject *key)
+{
+	PyObject *v;
+	long hash;
+	PyDictEntry *ep;
+	jobject jmp;
+	jobject jkey;
+	jmp = JyNI_JythonPyObject_FromPyObject(mp);
+	jkey = JyNI_JythonPyObject_FromPyObject(key);
+	env(NULL);
+	v = JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jmp, pyDict_dict___getitem__, jkey));
+	if (v == NULL) {
+		if (PyErr_Occurred())
+			return NULL;
+		set_key_error(key);
+		return NULL;
+	}
+	else
+		Py_INCREF(v);
+	return v;
+	//Python Code
 //	PyObject *v;
 //	long hash;
 //	PyDictEntry *ep;
@@ -1395,22 +1419,22 @@ dict_repr(PyDictObject *mp)
 //	else
 //		Py_INCREF(v);
 //	return v;
-//}
-//
-//static int
-//dict_ass_sub(PyDictObject *mp, PyObject *v, PyObject *w)
-//{
-//	if (w == NULL)
-//		return PyDict_DelItem((PyObject *)mp, v);
-//	else
-//		return PyDict_SetItem((PyObject *)mp, v, w);
-//}
-//
-//static PyMappingMethods dict_as_mapping = {
-//	(lenfunc)dict_length, /*mp_length*/
-//	(binaryfunc)dict_subscript, /*mp_subscript*/
-//	(objobjargproc)dict_ass_sub, /*mp_ass_subscript*/
-//};
+}
+
+static int
+dict_ass_sub(PyDictObject *mp, PyObject *v, PyObject *w)
+{
+	if (w == NULL)
+		return PyDict_DelItem((PyObject *)mp, v);
+	else
+		return PyDict_SetItem((PyObject *)mp, v, w);
+}
+
+static PyMappingMethods dict_as_mapping = {
+	(lenfunc)dict_length, /*mp_length*/
+	(binaryfunc)dict_subscript, /*mp_subscript*/
+	(objobjargproc)dict_ass_sub, /*mp_ass_subscript*/
+};
 //
 //static PyObject *
 //dict_keys(register PyDictObject *mp)
@@ -2361,10 +2385,10 @@ PyDict_Size(PyObject *mp)
 //}
 //
 //
-//extern PyTypeObject PyDictIterKey_Type; /* Forward */
+extern PyTypeObject PyDictIterKey_Type; /* Forward */
 //extern PyTypeObject PyDictIterValue_Type; /* Forward */
 //extern PyTypeObject PyDictIterItem_Type; /* Forward */
-//static PyObject *dictiter_new(PyDictObject *, PyTypeObject *);
+static PyObject *dictiter_new(PyDictObject *, PyTypeObject *);
 //
 //static PyObject *
 //dict_iterkeys(PyDictObject *dict)
@@ -2455,7 +2479,7 @@ PyDict_Size(PyObject *mp)
 //"D.iteritems() -> an iterator over the (key, value) items of D");
 //
 ///* Forward */
-//static PyObject *dictkeys_new(PyObject *);
+static PyObject *dictkeys_new(PyObject *);
 //static PyObject *dictitems_new(PyObject *);
 //static PyObject *dictvalues_new(PyObject *);
 //
@@ -2613,11 +2637,11 @@ dict_init(PyObject *self, PyObject *args, PyObject *kwds)
 	//return 0;
 }
 
-//static PyObject *
-//dict_iter(PyDictObject *dict)
-//{
-//	return dictiter_new(dict, &PyDictIterKey_Type);
-//}
+static PyObject *
+dict_iter(PyDictObject *dict)
+{
+	return dictiter_new(dict, &PyDictIterKey_Type);
+}
 
 PyDoc_STRVAR(dictionary_doc,
 "dict() -> new empty dictionary\n"
@@ -2643,7 +2667,7 @@ PyTypeObject PyDict_Type = {
 	(reprfunc)dict_repr,                        /* tp_repr */
 	0,                                          /* tp_as_number */
 	0,//&dict_as_sequence,                      /* tp_as_sequence */
-	0,//&dict_as_mapping,                       /* tp_as_mapping */
+	&dict_as_mapping,                       /* tp_as_mapping */
 	(hashfunc)PyObject_HashNotImplemented,      /* tp_hash */
 	0,                                          /* tp_call */
 	0,                                          /* tp_str */
@@ -2657,7 +2681,7 @@ PyTypeObject PyDict_Type = {
 	0,//dict_tp_clear,                          /* tp_clear */
 	0,//dict_richcompare,                       /* tp_richcompare */
 	0,                                          /* tp_weaklistoffset */
-	0,//(getiterfunc)dict_iter,                 /* tp_iter */
+	(getiterfunc)dict_iter,                 /* tp_iter */
 	0,                                          /* tp_iternext */
 	0,//mapp_methods,                           /* tp_methods */
 	0,                                          /* tp_members */
@@ -2820,18 +2844,38 @@ PyDict_DelItemString(PyObject *v, const char *key)
 
 ///* Dictionary iterator types */
 //
-//typedef struct {
+typedef struct {
+	PyObject_HEAD
+	jobject di_iter;
+	// Python Code:
 //	PyObject_HEAD
 //	PyDictObject *di_dict; /* Set to NULL when iterator is exhausted */
 //	Py_ssize_t di_used;
 //	Py_ssize_t di_pos;
 //	PyObject* di_result; /* reusable result tuple for iteritems */
 //	Py_ssize_t len;
-//} dictiterobject;
-//
-//static PyObject *
-//dictiter_new(PyDictObject *dict, PyTypeObject *itertype)
-//{
+} dictiterobject;
+
+static PyObject *
+dictiter_new(PyDictObject *dict, PyTypeObject *itertype)
+{
+	dictiterobject *di;
+	jobject jdict, jdictIter;
+	di = PyObject_GC_New(dictiterobject, itertype);
+	if (di == NULL)
+		return NULL;
+	Py_INCREF(dict);
+	if(!strcmp((itertype->tp_name), (PyDictIterKey_Type.tp_name))){
+		jdict = JyNI_JythonPyObject_FromPyObject(dict);
+		env(NULL);
+		jdictIter = (*env)->CallObjectMethod(env, jdict, pyDict___iter__);
+		di->di_iter = jdictIter;
+	} else {
+		jputs("JyNI Warning: dictiter_new not implemented for Iterators on Items or Values");
+	}
+	_JyNI_GC_TRACK(di);
+	return (PyObject *)di;
+	//Python Code:
 //	dictiterobject *di;
 //	di = PyObject_GC_New(dictiterobject, itertype);
 //	if (di == NULL)
@@ -2852,23 +2896,23 @@ PyDict_DelItemString(PyObject *v, const char *key)
 //		di->di_result = NULL;
 //	_JyNI_GC_TRACK(di);
 //	return (PyObject *)di;
-//}
+}
 //
-//static void
-//dictiter_dealloc(dictiterobject *di)
-//{
-//	Py_XDECREF(di->di_dict);
-//	Py_XDECREF(di->di_result);
-//	PyObject_GC_Del(di);
-//}
+static void
+dictiter_dealloc(dictiterobject *di)
+{
+	_JyNI_GC_UNTRACK(di);
+	// I think the underlying jobject will be dealt with by java once no refs are there: https://stackoverflow.com/questions/9369907/jni-objects-creation-and-memory-management
+	di->di_iter = NULL;
+	PyObject_GC_Del(di);
+}
 //
-//static int
-//dictiter_traverse(dictiterobject *di, visitproc visit, void *arg)
-//{
-//	Py_VISIT(di->di_dict);
-//	Py_VISIT(di->di_result);
-//	return 0;
-//}
+static int
+dictiter_traverse(dictiterobject *di, visitproc visit, void *arg)
+{
+	// should be no need to visit di->di_iter since it isn't a PyObject type thing and isn't tracked by GC or referenced by anything other than the dictiterobject
+	return 0;
+}
 //
 //static PyObject *
 //dictiter_len(dictiterobject *di)
@@ -2886,8 +2930,14 @@ PyDict_DelItemString(PyObject *v, const char *key)
 //	{NULL,			  NULL}		   /* sentinel */
 //};
 //
-//static PyObject *dictiter_iternextkey(dictiterobject *di)
-//{
+static PyObject *dictiter_iternextkey(dictiterobject *di)
+{
+	jobject jiter = di->di_iter;
+	if (jiter == NULL)
+				return NULL;
+	env(NULL);
+	return JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jiter, pyObject___iternext__));
+	// Python Code:
 //	PyObject *key;
 //	register Py_ssize_t i, mask;
 //	register PyDictEntry *ep;
@@ -2923,40 +2973,50 @@ PyDict_DelItemString(PyObject *v, const char *key)
 //	Py_DECREF(d);
 //	di->di_dict = NULL;
 //	return NULL;
-//}
-//
-//PyTypeObject PyDictIterKey_Type = {
-//	PyVarObject_HEAD_INIT(&PyType_Type, 0)
-//	"dictionary-keyiterator",				   /* tp_name */
-//	sizeof(dictiterobject),					 /* tp_basicsize */
-//	0,										  /* tp_itemsize */
-//	/* methods */
-//	(destructor)dictiter_dealloc,			   /* tp_dealloc */
-//	0,										  /* tp_print */
-//	0,										  /* tp_getattr */
-//	0,										  /* tp_setattr */
-//	0,										  /* tp_compare */
-//	0,										  /* tp_repr */
-//	0,										  /* tp_as_number */
-//	0,										  /* tp_as_sequence */
-//	0,										  /* tp_as_mapping */
-//	0,										  /* tp_hash */
-//	0,										  /* tp_call */
-//	0,										  /* tp_str */
-//	PyObject_GenericGetAttr,					/* tp_getattro */
-//	0,										  /* tp_setattro */
-//	0,										  /* tp_as_buffer */
-//	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,/* tp_flags */
-//	0,										  /* tp_doc */
-//	(traverseproc)dictiter_traverse,			/* tp_traverse */
-//	0,										  /* tp_clear */
-//	0,										  /* tp_richcompare */
-//	0,										  /* tp_weaklistoffset */
-//	PyObject_SelfIter,						  /* tp_iter */
-//	(iternextfunc)dictiter_iternextkey,		 /* tp_iternext */
-//	dictiter_methods,						   /* tp_methods */
-//	0,
-//};
+}
+
+PyTypeObject PyDictIterKey_Type = {
+	PyVarObject_HEAD_INIT(&PyType_Type, 0)
+	"dictionary-keyiterator",				   /* tp_name */
+	sizeof(dictiterobject),					 /* tp_basicsize */
+	0,										  /* tp_itemsize */
+	/* methods */
+	(destructor) dictiter_dealloc,			   /* tp_dealloc */
+	0,										  /* tp_print */
+	0,										  /* tp_getattr */
+	0,										  /* tp_setattr */
+	0,										  /* tp_compare */
+	0,										  /* tp_repr */
+	0,										  /* tp_as_number */
+	0,										  /* tp_as_sequence */
+	0,										  /* tp_as_mapping */
+	0,										  /* tp_hash */
+	0,										  /* tp_call */
+	0,										  /* tp_str */
+	PyObject_GenericGetAttr,					/* tp_getattro */
+	0,										  /* tp_setattro */
+	0,										  /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,/* tp_flags */
+	0,										  /* tp_doc */
+	(traverseproc)dictiter_traverse,			/* tp_traverse */
+	0,										  /* tp_clear */
+	0,										  /* tp_richcompare */
+	0,										  /* tp_weaklistoffset */
+	PyObject_SelfIter,						  /* tp_iter */
+	(iternextfunc)dictiter_iternextkey,		 /* tp_iternext */
+	0,//dictiter_methods,						   /* tp_methods */
+	0,                                          /* tp_members */
+	0,                                          /* tp_getset */
+	0,                                          /* tp_base */
+	0,                                          /* tp_dict */
+	0,                                          /* tp_descr_get */
+	0,                                          /* tp_descr_set */
+	0,                                          /* tp_dictoffset */
+	dict_init,                                  /* tp_init */
+	PyType_GenericAlloc,                        /* tp_alloc */
+	dict_new,                                   /* tp_new */
+	PyObject_Free,//PyObject_GC_Del,            /* tp_free */
+};
 //
 //static PyObject *dictiter_iternextvalue(dictiterobject *di)
 //{
