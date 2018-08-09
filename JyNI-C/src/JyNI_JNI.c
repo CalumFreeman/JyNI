@@ -384,6 +384,9 @@ jmethodID pyAbstractDict_mergeFromSeq;
 
 jclass pyDictClass;
 jmethodID pyDict_Constructor;
+jmethodID pyDict___iter__;
+jmethodID pyDict___len__;
+jmethodID pyDict_dict___getitem__;
 //jmethodID pyDictByPyObjectArrayConstructor;
 
 jclass pyStringMapClass;
@@ -1074,6 +1077,9 @@ inline jint initJythonObjects(JNIEnv *env)
 
 	JNI_CLASS(pyDict)
 	JNI_CONSTRUCTOR(pyDict, Constructor)
+	JNI_METH_CLASS(pyDict, __iter__, pyObject)
+	JNI_METH_CLASS(pyDict, __len__, int)
+	JNI_METH_CLASS(pyDict, dict___getitem__, pyObject, pyObject)
 
 	JNI_CLASS(pyStringMap)
 

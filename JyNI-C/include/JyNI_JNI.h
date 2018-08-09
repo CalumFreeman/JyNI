@@ -455,6 +455,9 @@ extern jmethodID pyAbstractDict_mergeFromSeq;
 
 extern jclass pyDictClass;
 extern jmethodID pyDict_Constructor;
+extern jmethodID pyDict___iter__;
+extern jmethodID pyDict___len__;
+extern jmethodID pyDict_dict___getitem__;
 
 extern jclass pyStringMapClass;
 
