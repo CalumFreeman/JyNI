@@ -111,29 +111,54 @@ extern "C" {
 FILE *
 PyFile_AsFile(PyObject *f)
 {
-	jobject f2;
+	// set up variables and error check
+	jobject jfile;
 	jint fd;
-	env(-1);
-	if (f == NULL)
+	jstring jmode;
+	FILE *cFile;
+	char *cmode;
+	env(NULL);
+	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
-	f2 = JyNI_JythonPyObject_FromPyObject(f);
-	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, f2);
-	// TODO get mode from PyFile
-	return fdopen(fd, "r");
-}
+		return NULL;
+	}
+	if(!(is_file_open(f))) return NULL; // NULL seems to be what functions expect to get when a file is closed
+	// get the file as a jythonPyObject
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
 
-/*
+	// get the file descriptor and mode of the file
+	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
+	jmode = (*env)->GetObjectField(env, jfile, pyFile_modeField);
+
+	// convert the mode to a c char * open the file and then release the string so it doesn't stay in memory
+	cmode = (*env)->GetStringUTFChars(env, jmode, 0);
+	cFile = fdopen((int)fd, cmode); // This creates a new file which may never be removed as extensions expect it to be stored in the PyFileObject and be managed with PfInc/DecUseCount
+	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
+
+	// return the file
+	return cFile;
+}
+/**
+ * The decision was taken to simply have dummy methods for PyFile_IncUseCount and PyFile_DecUseCount yet as
+ * these functions are not commonly used in C Extensions. If a C extension is encountered which requires these
+ * functions then they should be implemented at that point. The discussion around this took place here: https://github.com/Stewori/JyNI/issues/11
+ *
+ * It may also be preferable to implement these on the jython side of things, this suggestion is reflected here: http://bugs.jython.org/issue2699
+ */
+
 void PyFile_IncUseCount(PyFileObject *fobj)
 {
-    fobj->unlocked_count++;
+	jputs("JyNI Warning: PyFile_IncUseCount not implemented.");
+	//fobj->unlocked_count++;
 }
 
 void PyFile_DecUseCount(PyFileObject *fobj)
 {
-    fobj->unlocked_count--;
-    assert(fobj->unlocked_count >= 0);
+	jputs("JyNI Warning: PyFile_DecUseCount not implemented.");
+	//fobj->unlocked_count--;
+    //assert(fobj->unlocked_count >= 0);
 }
-*/
+
 PyObject *
 PyFile_Name(PyObject *f)
 {
@@ -544,10 +569,19 @@ close_the_file(PyFileObject *f)
     }
     Py_RETURN_NONE;
 }
-
+*/
+// I expect this will be useful: JyNI_PyObject_FromJythonPyObject
 PyObject *
 PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
 {
+	PyObject *o_name = PyString_FromString(name);
+	if (o_name == NULL) {
+	        if (close != NULL && fp != NULL)
+	            close(fp);
+	        return NULL;
+	}
+	return PyFile_FromString(name, mode);
+}/*
     PyFileObject *f;
     PyObject *o_name;
 
@@ -569,10 +603,23 @@ PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
     Py_DECREF(o_name);
     return (PyObject *)f;
 }
-
+*/
 PyObject *
 PyFile_FromString(char *name, char *mode)
 {
+	jstring jname;
+	jstring jmode;
+	jobject jfile;
+	int bufSize;
+	PyObject *pfile;
+	env(NULL);
+	jname = (*env)->NewStringUTF(env, name);
+	jmode = (*env)->NewStringUTF(env, mode);
+	bufSize = 8192;// I don't understand but here is what the internet said: https://stackoverflow.com/questions/236861/how-do-you-determine-the-ideal-buffer-size-when-using-fileinputstream#237495
+	jfile = (*env)->NewObject(env, pyFileClass, pyFile_CSS, jname, jmode, (jint)bufSize);
+	pfile = JyNI_PyObject_FromJythonPyObject(jfile);
+	return pfile;
+}/*
     PyFileObject *f;
 
     f = (PyFileObject *)PyFile_FromFile((FILE *)NULL, name, mode, NULL);

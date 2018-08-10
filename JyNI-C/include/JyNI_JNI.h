@@ -507,8 +507,10 @@ extern jfieldID pyInstance___dict__Field;
 extern jmethodID pyInstance_isSequenceType;
 
 extern jclass pyFileClass;
+extern jmethodID pyFile_CSS;
 extern jmethodID pyFile_write;
 extern jmethodID pyFile_fileno;
+extern jfieldID pyFile_modeField;
 
 
 extern jclass FileIOClass;
