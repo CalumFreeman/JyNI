@@ -216,7 +216,7 @@ int is_file_open(PyObject *f)
 	open = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_is_file_open, jfile);
 	return (int)open;
 }
-/*
+
 
 // This is a safe wrapper around PyObject_Print to print to the FILE
 // of a PyFileObject. PyObject_Print releases the GIL but knows nothing
@@ -225,12 +225,12 @@ static int
 file_PyObject_Print(PyObject *op, PyFileObject *f, int flags)
 {
     int result;
-    PyFile_IncUseCount(f);
-    result = PyObject_Print(op, f->f_fp, flags);
+    PyFile_IncUseCount(f); // This could fail since the use count hasn't actually been incremented (which could lead to file dissapearing part way through?)
+    result = PyObject_Print(op, PyFile_AsFile(f), flags);
     PyFile_DecUseCount(f);
     return result;
 }
-
+/*
 // On Unix, fopen will succeed for directories.
 // In Python, there should be no file objects referring to
 // directories, so we need a check.
@@ -1154,9 +1154,22 @@ file_tell(PyFileObject *f)
 #endif
 }
 
+// Note: this should return the file descriptor not the fileno returned by jython
 static PyObject *
 file_fileno(PyFileObject *f)
 {
+	// JyNI implementation
+	jobject jfile;
+	jint fd;
+	if(!is_file_open(f)){
+		return err_closed();
+	}
+	env(NULL);
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
+	return PyInt_FromLong((long) fd);
+	/*
+	//Python Code:
     if (f->f_fp == NULL)
         return err_closed();
     return PyInt_FromLong((long) fileno(f->f_fp));
@@ -2261,6 +2274,7 @@ PyDoc_STRVAR(enter_doc,
 PyDoc_STRVAR(exit_doc,
              "__exit__(*excinfo) -> None.  Closes the file.");
 
+// These seem to not be needed as the tp_getattro function currently calls java instead of checking this table
 static PyMethodDef file_methods[] = {
     {"readline",  (PyCFunction)file_readline, METH_VARARGS, readline_doc},
     {"read",      (PyCFunction)file_read,     METH_VARARGS, read_doc},
@@ -2296,68 +2310,43 @@ static PyMemberDef file_memberlist[] = {
      "Unicode error handler"},
     // getattr(f, "closed") is implemented without this table
     {NULL}      // Sentinel
-};
+};*/
 
 static PyObject *
 get_closed(PyFileObject *f, void *closure)
 {
-    return PyBool_FromLong((long)(f->f_fp == 0));
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jboolean jclosed = (*env)->CallBooleanMethod(env, jfile, pyFile_getClosed);
+	int cClosed = (int)jclosed;//TODO may break since casting from bool to int, who knows!
+	return PyBool_FromInt(cClosed);
 }
 static PyObject *
 get_newlines(PyFileObject *f, void *closure)
 {
-    switch (f->f_newlinetypes) {
-    case NEWLINE_UNKNOWN:
-        Py_INCREF(Py_None);
-        return Py_None;
-    case NEWLINE_CR:
-        return PyString_FromString("\r");
-    case NEWLINE_LF:
-        return PyString_FromString("\n");
-    case NEWLINE_CR|NEWLINE_LF:
-        return Py_BuildValue("(ss)", "\r", "\n");
-    case NEWLINE_CRLF:
-        return PyString_FromString("\r\n");
-    case NEWLINE_CR|NEWLINE_CRLF:
-        return Py_BuildValue("(ss)", "\r", "\r\n");
-    case NEWLINE_LF|NEWLINE_CRLF:
-        return Py_BuildValue("(ss)", "\n", "\r\n");
-    case NEWLINE_CR|NEWLINE_LF|NEWLINE_CRLF:
-        return Py_BuildValue("(sss)", "\r", "\n", "\r\n");
-    default:
-        PyErr_Format(PyExc_SystemError,
-                     "Unknown newlines value 0x%x\n",
-                     f->f_newlinetypes);
-        return NULL;
-    }
+	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_getNewlines);
+	return JyNI_PyObject_FromJythonPyObject(jres);
 }
 
 static PyObject *
 get_softspace(PyFileObject *f, void *closure)
 {
-    if (PyErr_WarnPy3k("file.softspace not supported in 3.x", 1) < 0)
-        return NULL;
-    return PyInt_FromLong(f->f_softspace);
+	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_getSoftspace);
+	return JyNI_PyObject_FromJythonPyObject(jres);
 }
 
 static int
 set_softspace(PyFileObject *f, PyObject *value)
 {
-    int new;
-    if (PyErr_WarnPy3k("file.softspace not supported in 3.x", 1) < 0)
-        return -1;
-
-    if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError,
-                        "can't delete softspace attribute");
-        return -1;
-    }
-
-    new = PyInt_AsLong(value);
-    if (new == -1 && PyErr_Occurred())
-        return -1;
-    f->f_softspace = new;
-    return 0;
+	jobject jvalue = JyNI_JythonPyObject_FromPyObject(value);
+	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(-1);
+	(*env)->CallObjectMethod(env, jobj, pyFile_setSoftspace, jvalue );
+	return 1;
 }
 
 static PyGetSetDef file_getsetlist[] = {
@@ -2368,7 +2357,7 @@ static PyGetSetDef file_getsetlist[] = {
      "flag indicating that a space needs to be printed; used by print"},
     {0},
 };
-
+/*
 static void
 drop_readahead(PyFileObject *f)
 {
@@ -2657,7 +2646,7 @@ PyTypeObject PyFile_Type = {
 	(iternextfunc)file_iternext,                // tp_iternext
     0,                               // tp_methods
     0,                            // tp_members
-    0,                            // tp_getset
+	file_getsetlist,                            // tp_getset
     0,                                          // tp_base
     0,                                          // tp_dict
     0,                                          // tp_descr_get
@@ -2668,6 +2657,7 @@ PyTypeObject PyFile_Type = {
     file_new,                                   // tp_new
 	PyObject_Free,								// tp_free
 };
+
 
 /*
 PyTypeObject PyFile_Type = {
@@ -2714,7 +2704,7 @@ PyTypeObject PyFile_Type = {
 };
 
 // Interface for the 'soft space' between print items.
-
+*/
 int
 PyFile_SoftSpace(PyObject *f, int newflag)
 {
@@ -2723,8 +2713,14 @@ PyFile_SoftSpace(PyObject *f, int newflag)
         // Do nothing
     }
     else if (PyFile_Check(f)) {
-        oldflag = ((PyFileObject *)f)->f_softspace;
-        ((PyFileObject *)f)->f_softspace = newflag;
+    	jobject jobj = JyNI_JythonPyObject_FromPyObject((PyObject *)f);
+    	env(NULL);
+    	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_getSoftspace);
+    	PyObject* thing = JyNI_PyObject_FromJythonPyObject(jres);
+        oldflag = PyInt_AsLong(thing);
+        set_softspace((PyFileObject *)f, Py_BuildValue("i", newflag));
+        //jobject JyPyNewFlag = JyNI_JythonPyObject_FromPyObject( Py_BuildValue("i", newflag) );
+        //(*env)->CallVoidMethod(env, jobj, pyFile_setSoftspace, JyPyNewFlag);
     }
     else {
         PyObject *v;
@@ -2751,6 +2747,29 @@ PyFile_SoftSpace(PyObject *f, int newflag)
 
 // Interfaces to write objects/strings to file-like objects
 
+static PyObject *PyFile_GetEncoding(PyObject *f){
+	cstr_decl(cEnc);
+	env(NULL);
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jstring jEnc = (*env)->GetObjectField(env, jfile, pyFile_encodingField); // TODO JNI
+	if(jEnc){
+		cstr_from_jstring(cEnc, jEnc);
+		return PyString_FromString(cEnc);
+	}
+	Py_RETURN_NONE;
+
+}
+static PyObject *PyFile_GetErrors(PyObject *f){
+	cstr_decl(cErr);
+	env(NULL);
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jstring jErr = (*env)->GetObjectField(env, jfile, pyFile_errorsField);
+	if(jErr){
+		cstr_from_jstring(cErr, jErr);
+		return PyString_FromString(cErr);
+	}
+	Py_RETURN_NONE;
+}
 int
 PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
 {
@@ -2762,10 +2781,10 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
     else if (PyFile_Check(f)) {
         PyFileObject *fobj = (PyFileObject *) f;
 #ifdef Py_USING_UNICODE
-        PyObject *enc = fobj->f_encoding;
+        PyObject *enc = PyFile_GetEncoding(fobj);
         int result;
 #endif
-        if (fobj->f_fp == NULL) {
+        if (!is_file_open(f)) {
             err_closed();
             return -1;
         }
@@ -2773,8 +2792,8 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
         if ((flags & Py_PRINT_RAW) &&
             PyUnicode_Check(v) && enc != Py_None) {
             char *cenc = PyString_AS_STRING(enc);
-            char *errors = fobj->f_errors == Py_None ?
-              "strict" : PyString_AS_STRING(fobj->f_errors);
+            char *errors = PyFile_GetErrors(fobj) == Py_None ?
+              "strict" : PyString_AS_STRING(PyFile_GetErrors(fobj));
             value = PyUnicode_AsEncodedString(v, cenc, errors);
             if (value == NULL)
                 return -1;
@@ -2819,7 +2838,7 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
         return -1;
     Py_DECREF(result);
     return 0;
-}*/
+}
 
 int
 PyFile_WriteString(const char *s, PyObject *f)
@@ -2871,7 +2890,7 @@ PyFile_WriteString(const char *s, PyObject *f)
 // an integer or long integer, which is returned as the file descriptor value.
 // -1 is returned on failure.
 
-
+// TODO I think that the reason this doesn't work for files because fileno() returns the wrong thing
 int PyObject_AsFileDescriptor(PyObject *o)
 {
 	jputs("JyNI warning: PyObject_AsFileDescriptor not yet implemented.");
@@ -2925,6 +2944,7 @@ int PyObject_AsFileDescriptor(PyObject *o)
     return fd;
 }
 */
+
 
 /* From here on we need access to the real fgets and fread */
 #undef fgets
