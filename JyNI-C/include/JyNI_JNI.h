@@ -239,6 +239,8 @@ extern jmethodID JyNI_getJythonGlobals;
 extern jmethodID JyNI_getJythonFrame;
 extern jmethodID JyNI_getPlatform;
 extern jmethodID JyNI_PyFile_fd;
+extern jmethodID JyNI_is_file_open;
+extern jmethodID JyNI_PyFile_name;
 
 extern jclass JyTStateClass;
 extern jmethodID JyTState_setRecursionLimit;

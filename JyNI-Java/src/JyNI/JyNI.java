@@ -1277,6 +1277,26 @@ public class JyNI {
 			System.out.println("Warning: JyNI will crash now because fileno is no FileIO");
 		return ((PyInteger)((FileIO)fileno).__int__()).getValue();
 	}
+	
+	public static int is_file_open(PyObject fileo) {
+		PyFile file = (PyFile)fileo;
+		Object fileno = file.fileno().__tojava__(FileIO.class);
+		if (!(fileno instanceof FileIO))
+			System.out.println("Warning: JyNI will crash now because fileno is no FileIO");
+		FileIO thing = (FileIO)fileno;
+		if(thing.closed()) {
+			return 0;
+		}
+		
+		return 1;
+	}
+	
+	public static String PyFile_name(PyObject fileo) {
+		PyFile file = (PyFile)fileo;
+		PyObject pname = file.name;
+		String out = pname.toString();
+		return out;
+	}
 
 	/**
 	 * a variant of the builtin type() constructor producing a type

@@ -133,15 +133,51 @@ void PyFile_DecUseCount(PyFileObject *fobj)
     fobj->unlocked_count--;
     assert(fobj->unlocked_count >= 0);
 }
-
+*/
 PyObject *
 PyFile_Name(PyObject *f)
 {
-    if (f == NULL || !PyFile_Check(f))
-        return NULL;
-    else
-        return ((PyFileObject *)f)->f_name;
+	// set up variables and error check
+	jobject jfile;
+	jstring jname;
+	char *cname;
+	PyObject *pname;
+	env(NULL);
+	if (f == NULL){
+		jputs("PyFile_AsFile with NULL-pointer");
+		return NULL;
+	}
+
+	// get the file as a jythonPyObject
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+
+	// get the name of the file
+	jname = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_name, jfile);
+
+	// convert the name to a c char *, put it in a PyObject and then release the string so it doesn't stay in memory
+	cname = (*env)->GetStringUTFChars(env, jname, 0);
+	pname = Py_BuildValue("s", cname);
+	(*env)->ReleaseStringUTFChars(env, jname, cname);
+
+	// return the file
+	return pname;
 }
+
+int is_file_open(PyObject *f)
+{
+	// returns 1(true)/0(false) depending on whether the file is open or not. Use call into java to get this (file.fileno().__tojava__(FileIO.class)
+	jobject jfile;
+	jint open;
+	env(-1);
+	if (f == NULL){
+		jputs("PyFile_AsFile with NULL-pointer");
+		return -1;
+	}
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	open = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_is_file_open, jfile);
+	return (int)open;
+}
+/*
 
 // This is a safe wrapper around PyObject_Print to print to the FILE
 // of a PyFileObject. PyObject_Print releases the GIL but knows nothing
