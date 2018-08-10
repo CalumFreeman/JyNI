@@ -645,10 +645,13 @@ PyFile_FromString(char *name, char *mode)
     }
     return (PyObject *)f;
 }
-
+*/
 void
 PyFile_SetBufSize(PyObject *f, int bufsize)
 {
+	// I don't think this needs to do anything since the buffer size is set in java on file creation and this should only be used immediately after creating a file.
+	// There also doesn't appear to be an obvious way to set buffer size in java after creating the file.
+}/*
     PyFileObject *file = (PyFileObject *)f;
     if (bufsize >= 0) {
         int type;
@@ -687,7 +690,7 @@ PyFile_SetBufSize(PyObject *f, int bufsize)
 
 // Set the encoding used to output Unicode strings.
 // Return 1 on success, 0 on failure.
-
+*/
 int
 PyFile_SetEncoding(PyObject *f, const char *enc)
 {
@@ -695,8 +698,26 @@ PyFile_SetEncoding(PyObject *f, const char *enc)
 }
 
 int
-PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* errors)
+PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* err)
 {
+	jobject jobj;
+	jstring jenc;
+	jstring jerr;
+	if (f == NULL){
+			jputs("PyFile_AsFile with NULL-pointer");
+			return -1;
+	}
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(-1);
+	jenc = (*env)->NewStringUTF(env, enc);
+//	if(err==NULL){ // I'm not sure if this is needed, what should errors/encoding be set to if NULL is the argument?
+//		jerr = (*env)->NewStringUTF(env, "");
+//	}
+	jerr = (*env)->NewStringUTF(env, err);
+	(*env)->CallVoidMethod(env, jobj, pyFile_setEncoding, jenc, jerr);
+	return 1;
+}
+/*
     PyFileObject *file = (PyFileObject*)f;
     PyObject *str, *oerrors;
 

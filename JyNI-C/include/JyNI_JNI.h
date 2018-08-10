@@ -512,6 +512,8 @@ extern jmethodID pyFile_write;
 extern jmethodID pyFile_fileno;
 extern jmethodID pyFile_file_close;
 extern jfieldID pyFile_modeField;
+extern jfieldID pyFile_encodingField;
+extern jfieldID pyFile_errorsField;
 
 
 extern jclass FileIOClass;
