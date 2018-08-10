@@ -2722,15 +2722,13 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
 int
 PyFile_WriteString(const char *s, PyObject *f)
 {
-	if (f == NULL)
-		puts("PyFile_WriteString with NULL-pointer");
-	else {
-		jobject f2 = JyNI_JythonPyObject_FromPyObject(f);
-		env(-1);
-		//(*env)->CallVoidMethod(env, ((JyObject*) f)->jy, pyFileWrite, (*env)->NewStringUTF(env, s));
-		(*env)->CallVoidMethod(env, f2, pyFile_write, (*env)->NewStringUTF(env, s));
-		//todo: JNI Exception handling
-		return 0;
+	if (f == NULL) { // TODO throw python error here?
+		return -1;
+	} else {
+		jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+		env(NULL);
+		(*env)->CallObjectMethod(env, jobj, pyFile_write, (*env)->NewStringUTF(env, s));
+		Py_RETURN_NONE; // TODO JNI exception handling?
 	}
 
     /*if (f == NULL) {
