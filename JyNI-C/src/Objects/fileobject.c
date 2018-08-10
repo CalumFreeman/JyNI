@@ -103,7 +103,21 @@
 extern "C" {
 #endif
 
-
+ static PyObject *
+ file_close(PyFileObject *f)
+ {
+ 	jobject jobj;
+ 	jobj = JyNI_JythonPyObject_FromPyObject(f);
+ 	env(NULL);
+ 	(*env)->CallObjectMethod(env, jobj, pyFile_file_close);
+ 	Py_RETURN_NONE; //I don't know what this is meant to return so it's returning none
+ //    PyObject *sts = close_the_file(f);
+ //    if (sts) {
+ //        PyMem_Free(f->f_setbuf);
+ //        f->f_setbuf = NULL;
+ //    }
+ //    return sts;
+ }
 /*
  * JyNI note:
  * See https://github.com/Stewori/JyNI/issues/11
@@ -784,16 +798,6 @@ file_repr(PyFileObject *f)
     }
 }
 
-static PyObject *
-file_close(PyFileObject *f)
-{
-    PyObject *sts = close_the_file(f);
-    if (sts) {
-        PyMem_Free(f->f_setbuf);
-        f->f_setbuf = NULL;
-    }
-    return sts;
-}
 
 
 // Our very own off_t-like type, 64-bit if possible

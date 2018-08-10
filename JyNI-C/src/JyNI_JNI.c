@@ -449,6 +449,7 @@ jclass pyFileClass;
 jmethodID pyFile_CSS;
 jmethodID pyFile_write;
 jmethodID pyFile_fileno;
+jmethodID pyFile_file_close;
 jfieldID pyFile_modeField;
 
 jclass FileIOClass;
@@ -1111,6 +1112,7 @@ inline jint initJythonObjects(JNIEnv *env)
 
 	JNI_CLASS(pyFile)
 	JNI_CONSTRUCTOR(pyFile, CSS, string, string, int)
+	JNI_METH_CLASS(pyFile, file_close, void)
 	JNI_METH_CLASS(pyFile, write, void, string)
 	JNI_METH_CLASS(pyFile, fileno, pyObject)
 	JNI_FIELD(pyFile, mode, string)
