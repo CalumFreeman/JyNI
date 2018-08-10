@@ -1687,10 +1687,20 @@ get_line(PyFileObject *f, int n)
 }
 
 // External C interface
-
+*/
 PyObject *
 PyFile_GetLine(PyObject *f, int n)
 {
+	// JyNI implementation
+	jobject jobj, jres;
+	PyObject *res;
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, n);
+	res = JyNI_PyObject_FromJythonPyObject(jres);
+	return res;
+	/*
+	// Python Code:
     PyObject *result;
 
     if (f == NULL) {
@@ -2126,18 +2136,18 @@ file_writelines(PyFileObject *f, PyObject *seq)
     Py_XDECREF(list);
     Py_XDECREF(it);
     return result;
-#undef CHUNKSIZE
+#undef CHUNKSIZE*/
 }
 
 static PyObject *
 file_self(PyFileObject *f)
 {
-    if (f->f_fp == NULL)
-        return err_closed();
-    Py_INCREF(f);
-    return (PyObject *)f;
+	if (!is_file_open(f))
+	    return err_closed();
+	Py_INCREF(f);
+	return (PyObject *)f;
 }
-
+/*
 static PyObject *
 file_xreadlines(PyFileObject *f)
 {
@@ -2456,29 +2466,29 @@ readahead_get_line_skip(PyFileObject *f, int skip, int bufsize)
 
 // A larger buffer size may actually decrease performance.
 #define READAHEAD_BUFSIZE 8192
-
+*/
 static PyObject *
 file_iternext(PyFileObject *f)
 {
-    PyStringObject* l;
-
-    if (f->f_fp == NULL)
-        return err_closed();
-    if (!f->readable)
-        return err_mode("reading");
-
-    l = readahead_get_line_skip(f, 0, READAHEAD_BUFSIZE);
-    if (l == NULL || PyString_GET_SIZE(l) == 0) {
-        Py_XDECREF(l);
-        return NULL;
-    }
-    return (PyObject *)l;
+	if (!is_file_open((PyObject *)f))
+	        return err_closed();
+	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile___iternext__);
+	return JyNI_PyObject_FromJythonPyObject(jres);
 }
 
 
 static PyObject *
 file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+	env(NULL);
+	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_Constructor);
+	PyObject* pfile = JyNI_PyObject_FromJythonPyObject(jfile);
+	return pfile;
+}
+/*
+	// Basically call constructor PyFile() and return it as a PyObj, file_init should then call it's file___init__ method somehow?
     PyObject *self;
     static PyObject *not_yet_string;
 
@@ -2507,10 +2517,24 @@ file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     }
     return self;
 }
-
+*/
 static int
 file_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
+	// This possibly needs to use the commented out code and just implement fill_file_fields etc
+	// We could also just parse out the arguemnts and hope
+	jobject jfile = JyNI_JythonPyObject_FromPyObject(self);
+	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
+	jobject jkwds = JyNI_JythonPyObject_FromPyObject(kwds); //kwds should be converted to strings somehow?
+	env(-1);
+	(*env)->CallVoidMethod(env, jfile, pyFile_file___init__, jargs, jkwds);
+	PyObject *pfile = JyNI_PyObject_FromJythonPyObject(jfile);
+	char *tmp = PyString_AsString(pfile->ob_type->tp_repr(pfile)); // This allows gdb to see the result of file_repr which tells me the name/mode change hasn't worked
+	Py_DECREF(self);
+	self = pfile;
+	return 0;
+}
+/*
     PyFileObject *foself = (PyFileObject *)self;
     int ret = 0;
     static char *kwlist[] = {"name", "mode", "buffering", 0};
@@ -2629,8 +2653,8 @@ PyTypeObject PyFile_Type = {
     0,                                          // tp_clear
     0,                                          // tp_richcompare
     0,        // tp_weaklistoffset
-    0,                     // tp_iter
-    0,                // tp_iternext
+	(getiterfunc)file_self,                     // tp_iter
+	(iternextfunc)file_iternext,                // tp_iternext
     0,                               // tp_methods
     0,                            // tp_members
     0,                            // tp_getset
@@ -2639,9 +2663,9 @@ PyTypeObject PyFile_Type = {
     0,                                          // tp_descr_get
     0,                                          // tp_descr_set
     0,                                          // tp_dictoffset
-    0,                                  // tp_init
-    0,                        // tp_alloc
-    0,                                   // tp_new
+	file_init,                                  // tp_init
+	PyType_GenericAlloc,                        // tp_alloc
+    file_new,                                   // tp_new
 	PyObject_Free,								// tp_free
 };
 

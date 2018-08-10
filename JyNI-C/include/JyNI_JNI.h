@@ -507,9 +507,18 @@ extern jfieldID pyInstance___dict__Field;
 extern jmethodID pyInstance_isSequenceType;
 
 extern jclass pyFileClass;
+extern jmethodID pyFile_Constructor;
 extern jmethodID pyFile_CSS;
+extern jmethodID pyFile_setEncoding;
+extern jmethodID pyFile_file___init__;
+extern jmethodID pyFile___iternext__;
+extern jmethodID pyFile_getClosed;
+extern jmethodID pyFile_getNewlines;
+extern jmethodID pyFile_getSoftspace;
+extern jmethodID pyFile_setSoftspace;
 extern jmethodID pyFile_write;
 extern jmethodID pyFile_fileno;
+extern jmethodID pyFile_file_readline;
 extern jmethodID pyFile_file_close;
 extern jmethodID pyFile_file_toString;
 extern jfieldID pyFile_modeField;
