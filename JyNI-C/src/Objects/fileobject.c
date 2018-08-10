@@ -770,10 +770,27 @@ err_iterbuffered(void)
 static void drop_readahead(PyFileObject *);
 */
 // Methods
-/*
+
 static void
 file_dealloc(PyFileObject *f)
 {
+	// JyNI implementation
+	PyObject *ret;
+	JyNIDebugOp(JY_NATIVE_FINALIZE, f, -1);
+	// We will revisit that:
+	//if (f->weakreflist != NULL)
+	//    PyObject_ClearWeakRefs((PyObject *) f);
+	ret = file_close(f); // since we aren't dealling with the PyInc/DecUse we don't need to check the ref count for that. TODO we should check the ob_refcount before deallocating everything though.
+	if (!ret) {
+	    PySys_WriteStderr("close failed in file object destructor:\n");
+	    PyErr_Print();
+	}
+	else {
+	    Py_DECREF(ret);
+	}
+	Py_TYPE(f)->tp_free(f);
+	/*
+	// Python Code:
     PyObject *ret;
     if (f->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) f);
@@ -791,36 +808,76 @@ file_dealloc(PyFileObject *f)
     Py_XDECREF(f->f_encoding);
     Py_XDECREF(f->f_errors);
     drop_readahead(f);
-    Py_TYPE(f)->tp_free((PyObject *)f);
+    Py_TYPE(f)->tp_free((PyObject *)f);*/
 }
+
 
 static PyObject *
 file_repr(PyFileObject *f)
 {
-    if (PyUnicode_Check(f->f_name)) {
+	// JyNI implementation
+	jobject jobj;
+	PyObject *pstr;
+	char *cstr;
+	jstring jstr;
+	jobj = JyNI_JythonPyObject_FromPyObject((PyObject *)f);
+	env(NULL);
+	jstr = (*env)->CallObjectMethod(env, jobj, pyFile_file_toString);
+	cstr = (*env)->GetStringUTFChars(env, jstr, NULL);
+	pstr = Py_BuildValue("s", cstr);
+	(*env)->ReleaseStringUTFChars(env, jstr, cstr);
+	return pstr;
+	// Python Code:
+	/*
+	env(-1);
+	jobject jfile;
+	jstring jmode;
+	PyObject *f_name;
+	PyObject *f_mode;
+	FILE *f_fp;
+
+	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	jmode = (*env)->CallStaticObjectMethod(env, JyNIClass, JyNI_PyFile_mode, jfile);
+
+	f_name = PyFile_Name(f);
+
+	const char *cmode = (*env)->GetStringUTFChars(env, jmode, 0);
+	f_mode = Py_BuildValue("s", cmode);
+	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
+
+	f_fp = PyFile_AsFile(f);
+
+	PyObject *ret = NULL;
+    if (PyUnicode_Check(f_name)) {
 #ifdef Py_USING_UNICODE
-        PyObject *ret = NULL;
-        PyObject *name = PyUnicode_AsUnicodeEscapeString(f->f_name);
+        PyObject *name = PyUnicode_AsUnicodeEscapeString(f_name);
         const char *name_str = name ? PyString_AsString(name) : "?";
         ret = PyString_FromFormat("<%s file u'%s', mode '%s' at %p>",
-                           f->f_fp == NULL ? "closed" : "open",
+                           f_fp == NULL ? "closed" : "open",
                            name_str,
-                           PyString_AsString(f->f_mode),
+                           PyString_AsString(f_mode),
                            f);
         Py_XDECREF(name);
+        Py_XDECREF(f_name);
+        Py_XDECREF(f_mode);
         return ret;
 #endif
     } else {
-        return PyString_FromFormat("<%s file '%s', mode '%s' at %p>",
-                           f->f_fp == NULL ? "closed" : "open",
-                           PyString_AsString(f->f_name),
-                           PyString_AsString(f->f_mode),
+        ret = PyString_FromFormat("<%s file '%s', mode '%s' at %p>",
+                           f_fp == NULL ? "closed" : "open",
+                           PyString_AsString(f_name),
+                           PyString_AsString(f_mode),
                            f);
-    }
+        Py_XDECREF(f_name);
+        Py_XDECREF(f_mode);
+        return ret;
+    }*/
 }
 
 
 
+
+/*
 // Our very own off_t-like type, 64-bit if possible
 #if !defined(HAVE_LARGEFILE_SUPPORT)
 typedef off_t Py_off_t;
@@ -2550,22 +2607,22 @@ PyTypeObject PyFile_Type = {
     "file",
     sizeof(PyFileObject),
     0,
-    0,                   // tp_dealloc
-    0,                                          // tp_print
-    0,                                          // tp_getattr
-    0,                                          // tp_setattr
-    0,                                          // tp_compare
-    0,                        // tp_repr
-    0,                                          // tp_as_number
-    0,                                          // tp_as_sequence
-    0,                                          // tp_as_mapping
-    0,                                          // tp_hash
-    0,                                          // tp_call
-    0,                                          // tp_str
-    0,                    // tp_getattro
-    // softspace is writable:  we must supply tp_setattro
-    0,                    // tp_setattro
-    0,                                          // tp_as_buffer
+	(destructor)file_dealloc,                   // tp_dealloc
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+	(reprfunc)file_repr,                        // tp_repr
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+	PyObject_GenericGetAttr,                 	// tp_getattro TODO hook in here to solve fileno: PyFile_GetAttr is an incomplete attempt
+	// softspace is writable:  we must supply tp_setattro
+	PyObject_GenericSetAttr,                    // tp_setattro
+    0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_WEAKREFS, // tp_flags
     file_doc,                                   // tp_doc
     0,                                          // tp_traverse
@@ -2585,7 +2642,7 @@ PyTypeObject PyFile_Type = {
     0,                                  // tp_init
     0,                        // tp_alloc
     0,                                   // tp_new
-    0,                           // tp_free
+	PyObject_Free,								// tp_free
 };
 
 /*
