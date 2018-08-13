@@ -381,12 +381,14 @@ jclass pyAbstractDictClass;
 jmethodID pyAbstractDict_copy;
 jmethodID pyAbstractDict_merge;
 jmethodID pyAbstractDict_mergeFromSeq;
+jmethodID pyAbstractDict___iter__;
+jmethodID pyAbstractDict___len__;
+jmethodID pyAbstractDict___finditem__;
+
+jclass KeysIterClass;
 
 jclass pyDictClass;
 jmethodID pyDict_Constructor;
-jmethodID pyDict___iter__;
-jmethodID pyDict___len__;
-jmethodID pyDict_dict___getitem__;
 //jmethodID pyDictByPyObjectArrayConstructor;
 
 jclass pyStringMapClass;
@@ -1074,12 +1076,14 @@ inline jint initJythonObjects(JNIEnv *env)
 	JNI_METH_CLASS(pyAbstractDict, copy, pyAbstractDict)
 	JNI_METH_CLASS(pyAbstractDict, merge, void, pyObject, boolean)
 	JNI_METH_CLASS(pyAbstractDict, mergeFromSeq, void, pyObject, boolean)
+	JNI_METH_CLASS(pyAbstractDict, __iter__, pyObject)
+	JNI_METH_CLASS(pyAbstractDict, __len__, int)
+	JNI_METH_CLASS(pyAbstractDict, __finditem__, pyObject, pyObject)
+
+	JNI_CLASS(KeysIter)
 
 	JNI_CLASS(pyDict)
 	JNI_CONSTRUCTOR(pyDict, Constructor)
-	JNI_METH_CLASS(pyDict, __iter__, pyObject)
-	JNI_METH_CLASS(pyDict, __len__, int)
-	JNI_METH_CLASS(pyDict, dict___getitem__, pyObject, pyObject)
 
 	JNI_CLASS(pyStringMap)
 

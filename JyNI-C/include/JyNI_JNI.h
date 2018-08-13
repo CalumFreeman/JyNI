@@ -89,6 +89,7 @@
 #define pack_pyTuple               "org/python/core/PyTuple"
 #define pack_pyList                "org/python/core/PyList"
 #define pack_pyAbstractDict        "org/python/core/AbstractDict"
+#define pack_KeysIter              "org/python/core/AbstractDict$KeysIter"
 #define pack_pyDict                "org/python/core/PyDictionary"
 #define pack_pyStringMap           "org/python/core/PyStringMap"
 #define pack_pySequence            "org/python/core/PySequence"
@@ -452,12 +453,14 @@ extern jclass pyAbstractDictClass;
 extern jmethodID pyAbstractDict_copy;
 extern jmethodID pyAbstractDict_merge;
 extern jmethodID pyAbstractDict_mergeFromSeq;
+extern jmethodID pyAbstractDict___iter__;
+extern jmethodID pyAbstractDict___len__;
+extern jmethodID pyAbstractDict___finditem__; //finditem is shared by dictionary and stringmap. It acts the same as getitem.
+
+extern jclass KeysIterClass;
 
 extern jclass pyDictClass;
 extern jmethodID pyDict_Constructor;
-extern jmethodID pyDict___iter__;
-extern jmethodID pyDict___len__;
-extern jmethodID pyDict_dict___getitem__;
 
 extern jclass pyStringMapClass;
 

@@ -1004,6 +1004,11 @@ inline void initBuiltinTypes()
 	builtinTypes[TME_INDEX_Dict].flags = JY_TRUNCATE_FLAG_MASK;
 	PyDict_Type.tp_flags |= Jy_TPFLAGS_DYN_OBJECTS;
 
+	builtinTypes[TME_INDEX_DictIter].py_type = &PyDictIterKey_Type;
+	builtinTypes[TME_INDEX_DictIter].jy_class = KeysIterClass;
+	builtinTypes[TME_INDEX_DictIter].flags = JY_TRUNCATE_FLAG_MASK;
+	PyDictIterKey_Type.tp_flags |= Jy_TPFLAGS_DYN_OBJECTS;
+
 	/* In the CPython->Java lookup direction, this is
 	   overwritten by the previous entry with pyDictClass.
 	   However, it ensures that pyStringMapClass has a valid

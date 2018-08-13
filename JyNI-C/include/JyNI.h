@@ -863,7 +863,7 @@ jobject JyNI_mbcs_encode(jobject input, jobject errors, jlong tstate);
 jobject JyNI_mbcs_decode(jobject input, jobject errors, jobject final, jlong tstate);
 
 
-#define builtinTypeCount 42
+#define builtinTypeCount 43
 extern TypeMapEntry builtinTypes[builtinTypeCount];
 #define TME_INDEX_Type                   0
 #define TME_INDEX_NotImplemented         1
@@ -901,26 +901,27 @@ extern TypeMapEntry builtinTypes[builtinTypeCount];
 #define TME_INDEX_List                  29
 //#define TME_INDEX_ListIter            30
 //#define TME_INDEX_ListRevIter         31
-#define TME_INDEX_Dict                  30
-#define TME_INDEX_StringMap             31
-#define TME_INDEX_Set                   32
+#define TME_INDEX_DictIter              30
+#define TME_INDEX_Dict                  31
+#define TME_INDEX_StringMap             32
+#define TME_INDEX_Set                   33
 //#define TME_INDEX_SetIter             34
-#define TME_INDEX_FrozenSet             33
+#define TME_INDEX_FrozenSet             34
 //#define TME_INDEX_Enum                36
-#define TME_INDEX_Slice                 34
-#define TME_INDEX_Ellipsis              35
+#define TME_INDEX_Slice                 35
+#define TME_INDEX_Ellipsis              36
 //#define TME_INDEX_Gen                 39
-#define TME_INDEX_Code_Bytecode         36
-#define TME_INDEX_Code_Tablecode        37
-#define TME_INDEX_Frame                 38
+#define TME_INDEX_Code_Bytecode         37
+#define TME_INDEX_Code_Tablecode        38
+#define TME_INDEX_Frame                 39
 //#define TME_INDEX_Super               43
-#define TME_INDEX_Exc_BaseException     39
-#define TME_INDEX_TraceBack             40
+#define TME_INDEX_Exc_BaseException     40
+#define TME_INDEX_TraceBack             41
 //#define TME_INDEX_ByteArray           46
 //#define TME_INDEX_Buffer              47
 //#define TME_INDEX_MemoryView          48
 //#define TME_INDEX_CallIter            50
-#define TME_INDEX_BaseObject            41 //must be last type in list
+#define TME_INDEX_BaseObject            42 //must be last type in list
 
 /* "Hidden" PyTypes: */
 extern PyTypeObject PyNone_Type;

@@ -1354,7 +1354,7 @@ dict_length(PyDictObject *mp)
 {
 	jobject jmp = JyNI_JythonPyObject_FromPyObject(mp);
 	env(-1);
-	jint res = (*env)->CallIntMethod(env, jmp, pyDict___len__);
+	jint res = (*env)->CallIntMethod(env, jmp, pyAbstractDict___len__);
 	return (Py_ssize_t)(int)res;
 	//Python Code:
 	//return mp->ma_used;
@@ -1371,7 +1371,7 @@ dict_subscript(PyDictObject *mp, register PyObject *key)
 	jmp = JyNI_JythonPyObject_FromPyObject(mp);
 	jkey = JyNI_JythonPyObject_FromPyObject(key);
 	env(NULL);
-	v = JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jmp, pyDict_dict___getitem__, jkey));
+	v = JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jmp, pyAbstractDict___finditem__, jkey));
 	if (v == NULL) {
 		if (PyErr_Occurred())
 			return NULL;
@@ -2846,7 +2846,7 @@ PyDict_DelItemString(PyObject *v, const char *key)
 //
 typedef struct {
 	PyObject_HEAD
-	jobject di_iter;
+	//jobject di_iter;
 	// Python Code:
 //	PyObject_HEAD
 //	PyDictObject *di_dict; /* Set to NULL when iterator is exhausted */
@@ -2859,22 +2859,36 @@ typedef struct {
 static PyObject *
 dictiter_new(PyDictObject *dict, PyTypeObject *itertype)
 {
-	dictiterobject *di;
-	jobject jdict, jdictIter;
-	di = PyObject_GC_New(dictiterobject, itertype);
-	if (di == NULL)
-		return NULL;
-	Py_INCREF(dict);
+	PyObject* di;
+	JyObject* jy;
+	env(NULL);
 	if(!strcmp((itertype->tp_name), (PyDictIterKey_Type.tp_name))){
-		jdict = JyNI_JythonPyObject_FromPyObject(dict);
-		env(NULL);
-		jdictIter = (*env)->CallObjectMethod(env, jdict, pyDict___iter__);
-		di->di_iter = jdictIter;
+			jobject jdict = JyNI_JythonPyObject_FromPyObject(dict);
+			di = _JyObject_New(&PyDictIterKey_Type, &builtinTypes[TME_INDEX_DictIter]);
+			jy = AS_JY_NO_GC(di);
+			jy->jy = (*env)->CallObjectMethod(env, jdict, pyAbstractDict___iter__);
+			jy->flags |= JY_INITIALIZED_FLAG_MASK;
 	} else {
 		jputs("JyNI Warning: dictiter_new not implemented for Iterators on Items or Values");
 	}
-	_JyNI_GC_TRACK(di);
-	return (PyObject *)di;
+	return di;
+	//Old JyNI code:
+//	dictiterobject *di;
+//	jobject jdict, jdictIter;
+//	di = PyObject_GC_New(dictiterobject, itertype);
+//	if (di == NULL)
+//		return NULL;
+//	Py_INCREF(dict);
+//	if(!strcmp((itertype->tp_name), (PyDictIterKey_Type.tp_name))){
+//		jdict = JyNI_JythonPyObject_FromPyObject(dict);
+//		env(NULL);
+//		jdictIter = (*env)->CallObjectMethod(env, jdict, pyDict___iter__);
+//		di->di_iter = jdictIter;
+//	} else {
+//		jputs("JyNI Warning: dictiter_new not implemented for Iterators on Items or Values");
+//	}
+//	_JyNI_GC_TRACK(di);
+//	return (PyObject *)di;
 	//Python Code:
 //	dictiterobject *di;
 //	di = PyObject_GC_New(dictiterobject, itertype);
@@ -2901,10 +2915,13 @@ dictiter_new(PyDictObject *dict, PyTypeObject *itertype)
 static void
 dictiter_dealloc(dictiterobject *di)
 {
-	_JyNI_GC_UNTRACK(di);
-	// I think the underlying jobject will be dealt with by java once no refs are there: https://stackoverflow.com/questions/9369907/jni-objects-creation-and-memory-management
-	di->di_iter = NULL;
-	PyObject_GC_Del(di);
+	JyNIDebugOp(JY_NATIVE_FINALIZE, di, -1);
+	PyObject_Free(di);
+	//Old JyNI code:
+//	_JyNI_GC_UNTRACK(di);
+//	// I think the underlying jobject will be dealt with by java once no refs are there: https://stackoverflow.com/questions/9369907/jni-objects-creation-and-memory-management
+//	di->di_iter = NULL;
+//	PyObject_GC_Del(di);
 }
 //
 static int
@@ -2930,13 +2947,20 @@ dictiter_traverse(dictiterobject *di, visitproc visit, void *arg)
 //	{NULL,			  NULL}		   /* sentinel */
 //};
 //
-static PyObject *dictiter_iternextkey(dictiterobject *di)
+static PyObject *dictiter_iternextkey(dictiterobject *dictiter)
 {
-	jobject jiter = di->di_iter;
-	if (jiter == NULL)
-				return NULL;
+	jobject jdict = JyNI_JythonPyObject_FromPyObject(dictiter);
+	if(!jdict){
+		return NULL;
+	}
 	env(NULL);
-	return JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jiter, pyObject___iternext__));
+	return JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jdict, pyObject___iternext__));
+	//Old JyNI code:
+//	jobject jiter = di->di_iter;
+//	if (jiter == NULL)
+//				return NULL;
+//	env(NULL);
+//	return JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jiter, pyObject___iternext__));
 	// Python Code:
 //	PyObject *key;
 //	register Py_ssize_t i, mask;
@@ -2996,9 +3020,9 @@ PyTypeObject PyDictIterKey_Type = {
 	PyObject_GenericGetAttr,					/* tp_getattro */
 	0,										  /* tp_setattro */
 	0,										  /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,/* tp_flags */
+	Py_TPFLAGS_DEFAULT,/* tp_flags */
 	0,										  /* tp_doc */
-	(traverseproc)dictiter_traverse,			/* tp_traverse */
+	(traverseproc)dictiter_traverse,	  /* tp_traverse */
 	0,										  /* tp_clear */
 	0,										  /* tp_richcompare */
 	0,										  /* tp_weaklistoffset */
