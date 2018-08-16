@@ -253,6 +253,13 @@ exceptionTest(PyObject* self, PyObject* args)
 	//Py_RETURN_NONE;
 	return NULL;
 }
+PyObject*
+badExceptionTest(PyObject* self, PyObject* args)
+{
+	PyObject_Call(PyExc_SystemError, Py_BuildValue("(ii)", 1, 2), NULL);
+	PyErr_SetString(PyExc_SystemError, "This is a test exception message for JyNI.");
+	return NULL;
+}
 
 PyObject*
 unicodeTest(PyObject* self, PyObject* args)
@@ -500,6 +507,7 @@ PyMethodDef DemoExtensionMethods[] = {
 	{"concatFirstWithLastString", concatFirstWithLastString, METH_VARARGS, "Concatenates first with last element. Returns empty string, if less than two args are available."},
 	{"keywordTest", keywordTest, METH_VARARGS | METH_KEYWORDS, "Tests working with keywords."},
 	{"exceptionTest", exceptionTest, METH_NOARGS, "Raise an exception to test JyNI's exception support."},
+	{"badExceptionTest", badExceptionTest, METH_NOARGS, "Call an exception Object with PyObject_Call, it shouldn't segfault."},
 	{"unicodeTest", unicodeTest, METH_VARARGS, "Test JyNI's unicode support by converting forth and back."},
 	{"createListSelfContaining", createListSelfContaining, METH_NOARGS, "Natively create a self-containing list."},
 	{"createTupleSelfContaining", createTupleSelfContaining, METH_NOARGS, "Natively create a self-containing tuple."},
