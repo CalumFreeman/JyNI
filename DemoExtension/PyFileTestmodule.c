@@ -39,78 +39,11 @@
 #ifndef MS_WINDOWS
 #define _alloca alloca
 #endif
-PyMODINIT_FUNC initPyFileTest(void);
-// make some macros to expand the stuff needed for python to understand this module
-// Basically MakeTest(functionName) then in pyMethodDef MapTest(functionName) and that will expose test_functionName to python
-#define MakeTest(X) static PyObject* testPyFile_ ## X (PyObject *self, PyObject *args);\
-static char X ## _docs[] = "This tests the "#X" function"
-#define MapTest(X) { "test_"#X, (PyCFunction)testPyFile_ ## X, METH_VARARGS, X ## _docs }
 
-// SetBufSize SetEncoding SetEncodingAndErrors SoftSpace
-// declare functions, doc strings and method def's
-MakeTest(PyFile_Check);
-MakeTest(PyFile_CheckExact);
-MakeTest(PyFile_WriteString);
-MakeTest(PyFile_AsFile);
-MakeTest(PyFile_Name);
-MakeTest(PyFile_FromFile);
-MakeTest(PyFile_FromString);
-MakeTest(PyFile_GetLine);
-MakeTest(PyFile_SetBufSize);
-MakeTest(PyFile_SetEncoding);
-MakeTest(PyFile_SetEncodingAndErrors);
-MakeTest(PyFile_SoftSpace);
-MakeTest(PyFile_IncUseCount);
-MakeTest(PyFile_DecUseCount);
-MakeTest(PyObject_AsFileDescriptor);
-MakeTest(PyFile_WriteObject);
-MakeTest(tp_repr);
-MakeTest(tp_getattro);
-MakeTest(tp_setattro);
-MakeTest(tp_flags);
-MakeTest(tp_doc);
-MakeTest(tp_weaklistoffset);
-MakeTest(tp_iter);
-MakeTest(tp_iternext);
-MakeTest(tp_new);
-MakeTest(tp_init);
-MakeTest(tp_dealloc);
-// declare doc strings
+// This macro, when in in pyMethodDef, will expose test_functionName to python
+#define MapTest(X) { "test_"#X, (PyCFunction)testPyFile_ ## X, METH_VARARGS, "This tests the "#X" function" }
+
 static char PyFile_docs[]= "this tests the PyFile API";
-
-// declare module map
-static PyMethodDef PyFileTestMethods[] = {
-		MapTest(PyFile_Check),
-		MapTest(PyFile_CheckExact),
-		MapTest(PyFile_WriteString),
-		MapTest(PyFile_AsFile),
-		MapTest(PyFile_Name),
-		MapTest(PyFile_FromFile),
-		MapTest(PyFile_FromString),
-		MapTest(PyFile_GetLine),
-		MapTest(PyFile_SetBufSize),
-		MapTest(PyFile_SetEncoding),
-		MapTest(PyFile_SetEncodingAndErrors),
-		MapTest(PyFile_SoftSpace),
-		MapTest(PyFile_IncUseCount),
-		MapTest(PyFile_DecUseCount),
-		MapTest(PyObject_AsFileDescriptor),
-		MapTest(PyFile_WriteObject),
-		MapTest(tp_repr),
-		MapTest(tp_getattro),
-		MapTest(tp_setattro),
-		MapTest(tp_flags),
-		MapTest(tp_doc),
-		MapTest(tp_weaklistoffset),
-		MapTest(tp_iter),
-		MapTest(tp_iternext),
-		MapTest(tp_new),
-		MapTest(tp_init),
-		MapTest(tp_dealloc),
-		{ NULL, NULL, 0, NULL }
-
-};
-
 
 // define functions
 static PyObject* testPyFile_PyFile_Check(PyObject *self, PyObject *args){
@@ -408,6 +341,39 @@ static PyObject* testPyFile_tp_dealloc(PyObject *self, PyObject *args){
 	}
 	return Py_BuildValue("i", 0);
 }
+
+// declare module map
+static PyMethodDef PyFileTestMethods[] = {
+		MapTest(PyFile_Check),
+		MapTest(PyFile_CheckExact),
+		MapTest(PyFile_WriteString),
+		MapTest(PyFile_AsFile),
+		MapTest(PyFile_Name),
+		MapTest(PyFile_FromFile),
+		MapTest(PyFile_FromString),
+		MapTest(PyFile_GetLine),
+		MapTest(PyFile_SetBufSize),
+		MapTest(PyFile_SetEncoding),
+		MapTest(PyFile_SetEncodingAndErrors),
+		MapTest(PyFile_SoftSpace),
+		MapTest(PyFile_IncUseCount),
+		MapTest(PyFile_DecUseCount),
+		MapTest(PyObject_AsFileDescriptor),
+		MapTest(PyFile_WriteObject),
+		MapTest(tp_repr),
+		MapTest(tp_getattro),
+		MapTest(tp_setattro),
+		MapTest(tp_flags),
+		MapTest(tp_doc),
+		MapTest(tp_weaklistoffset),
+		MapTest(tp_iter),
+		MapTest(tp_iternext),
+		MapTest(tp_new),
+		MapTest(tp_init),
+		MapTest(tp_dealloc),
+		{ NULL, NULL, 0, NULL }
+
+};
 
 //initialise module
 PyMODINIT_FUNC

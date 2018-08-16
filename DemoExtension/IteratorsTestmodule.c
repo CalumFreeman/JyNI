@@ -39,26 +39,11 @@
 #ifndef MS_WINDOWS
 #define _alloca alloca
 #endif
-PyMODINIT_FUNC initIteratorsTest(void);
-// make some macros to expand the stuff needed for python to understand this module
-// Basically MakeTest(functionName) then in pyMethodDef MapTest(functionName) and that will expose test_functionName to python
-#define MakeTest(X) static PyObject* test_ ## X (PyObject *self, PyObject *args);\
-static char X ## _docs[] = "This tests the "#X" function"
-#define MapTest(X) { "test_"#X, (PyCFunction)test_ ## X, METH_VARARGS, X ## _docs }
 
-// SetBufSize SetEncoding SetEncodingAndErrors SoftSpace
-// declare functions, doc strings and method def's
-MakeTest(iternext);
-// declare doc strings
+// This macro, when in in pyMethodDef, will expose test_functionName to python
+#define MapTest(X) { "test_"#X, (PyCFunction)test_ ## X, METH_VARARGS, "This tests the "#X" function" }
+
 static char Iterators_docs[]= "this tests the PyFile API";
-
-// declare module map
-static PyMethodDef IteratorsMethods[] = {
-		MapTest(iternext),
-		{ NULL, NULL, 0, NULL }
-
-};
-
 
 // define functions
 static PyObject* test_iternext(PyObject *self, PyObject *args){
@@ -79,7 +64,12 @@ static PyObject* test_iternext(PyObject *self, PyObject *args){
 }
 
 
+// declare module map
+static PyMethodDef IteratorsMethods[] = {
+		MapTest(iternext),
+		{ NULL, NULL, 0, NULL }
 
+};
 
 //initialise module
 PyMODINIT_FUNC
