@@ -901,7 +901,7 @@ extern TypeMapEntry builtinTypes[builtinTypeCount];
 #define TME_INDEX_List                  29
 //#define TME_INDEX_ListIter            30
 //#define TME_INDEX_ListRevIter         31
-#define TME_INDEX_DictIter              30
+#define TME_INDEX_KeysIter              30
 #define TME_INDEX_Dict                  31
 #define TME_INDEX_StringMap             32
 #define TME_INDEX_Set                   33

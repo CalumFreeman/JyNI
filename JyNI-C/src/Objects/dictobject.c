@@ -2864,7 +2864,7 @@ dictiter_new(PyDictObject *dict, PyTypeObject *itertype)
 	env(NULL);
 	if(!strcmp((itertype->tp_name), (PyDictIterKey_Type.tp_name))){
 			jobject jdict = JyNI_JythonPyObject_FromPyObject(dict);
-			di = _JyObject_New(&PyDictIterKey_Type, &builtinTypes[TME_INDEX_DictIter]);
+			di = _JyObject_New(&PyDictIterKey_Type, &builtinTypes[TME_INDEX_KeysIter]);
 			jy = AS_JY_NO_GC(di);
 			jy->jy = (*env)->CallObjectMethod(env, jdict, pyAbstractDict___iter__);
 			jy->flags |= JY_INITIALIZED_FLAG_MASK;

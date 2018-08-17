@@ -1004,9 +1004,9 @@ inline void initBuiltinTypes()
 	builtinTypes[TME_INDEX_Dict].flags = JY_TRUNCATE_FLAG_MASK;
 	PyDict_Type.tp_flags |= Jy_TPFLAGS_DYN_OBJECTS;
 
-	builtinTypes[TME_INDEX_DictIter].py_type = &PyDictIterKey_Type;
-	builtinTypes[TME_INDEX_DictIter].jy_class = KeysIterClass;
-	builtinTypes[TME_INDEX_DictIter].flags = JY_TRUNCATE_FLAG_MASK;
+	builtinTypes[TME_INDEX_KeysIter].py_type = &PyDictIterKey_Type;
+	builtinTypes[TME_INDEX_KeysIter].jy_class = KeysIterClass;
+	builtinTypes[TME_INDEX_KeysIter].flags = JY_TRUNCATE_FLAG_MASK;
 	PyDictIterKey_Type.tp_flags |= Jy_TPFLAGS_DYN_OBJECTS;
 
 	/* In the CPython->Java lookup direction, this is
@@ -2264,7 +2264,11 @@ inline int decWeakRefCount(JyObject* referent)
 /*returns local ref!*/
 inline jobject JyNI_GetJythonDelegate(PyObject* v)
 {
-//	jputs(__FUNCTION__);
+	//JyNI note: if ob_type is NULL, we assume that base is a Type object that was
+	//not initialized because of our use-on-demand philosophy regarding PyType_Ready.
+	if (!v->ob_type) {
+	  PyType_Ready(v);
+	}
 	//if (!Is_DynPtrPy(v)) return NULL;
 	if (Is_StaticSingleton_NotBuiltin(v)) return NULL;
 	if (!PyType_Check(v)) // && !PyExc_Check(v)PyStructSequence_InitType
