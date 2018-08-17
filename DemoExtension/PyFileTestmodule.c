@@ -43,8 +43,6 @@
 // This macro, when in in pyMethodDef, will expose test_functionName to python
 #define MapTest(X) { "test_"#X, (PyCFunction)testPyFile_ ## X, METH_VARARGS, "This tests the "#X" function" }
 
-static char PyFile_docs[]= "this tests the PyFile API";
-
 // define functions
 static PyObject* testPyFile_PyFile_Check(PyObject *self, PyObject *args){
 	PyObject *Obj;
@@ -379,5 +377,5 @@ static PyMethodDef PyFileTestMethods[] = {
 PyMODINIT_FUNC
 initPyFileTest(void)
 {
-	(void)Py_InitModule3("PyFileTest", PyFileTestMethods, PyFile_docs);
+	(void)Py_InitModule3("PyFileTest", PyFileTestMethods, "this tests the PyFile API");
 }

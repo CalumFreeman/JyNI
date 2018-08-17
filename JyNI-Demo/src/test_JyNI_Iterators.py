@@ -38,23 +38,23 @@ from pickletools import string1
 from unittest.case import SkipTest
 
 if os.name == 'java':
-    systm = platform.java_ver()[-1][0].lower().replace(' ', '')
-    if systm == 'macosx':
-        ver = platform.java_ver()[-1][1]
-        ver = ver[:5] # e.g."10.12.4" => "10.12"
-        buildf = '-'.join((systm, ver, 'intel'))
-    else:
-        if systm.startswith('win'):
-            systm = 'win'
-        buildf = '-'.join((systm, os.uname()[-1]))
+	systm = platform.java_ver()[-1][0].lower().replace(' ', '')
+	if systm == 'macosx':
+		ver = platform.java_ver()[-1][1]
+		ver = ver[:5] # e.g."10.12.4" => "10.12"
+		buildf = '-'.join((systm, ver, 'intel'))
+	else:
+		if systm.startswith('win'):
+			systm = 'win'
+		buildf = '-'.join((systm, os.uname()[-1]))
 else:
-    systm = os.uname()[0].lower()
-    if systm == 'darwin':
-        ver = platform.mac_ver()[0]
-        ver = ver[:5] # e.g."10.12.4" => "10.12"
-        buildf = '-'.join(('macosx', ver, 'intel'))
-    else:
-        buildf = '-'.join((systm, os.uname()[-1]))
+	systm = os.uname()[0].lower()
+	if systm == 'darwin':
+		ver = platform.mac_ver()[0]
+		ver = ver[:5] # e.g."10.12.4" => "10.12"
+		buildf = '-'.join(('macosx', ver, 'intel'))
+	else:
+		buildf = '-'.join((systm, os.uname()[-1]))
 
 
 #Since invalid paths do no harm, we add several possible paths here, where
@@ -77,42 +77,42 @@ import datetime
 import unittest
 import IteratorsTest as it
 
-class Test_Iterators(unittest.TestCase):
-    
-    def test_iternext(self):
-        a = [1,2,3,4]
-        a = dict(one=1, two=2, three=3, four=4, five=5)
-        b = a.__iter__()
-        n = 3
-        for i in range(0, n):
-            c = b.next()
-        d = it.test_iternext(a, n)
-        self.assertEqual(c, d)
-    
-    def test_npRand(self):
-        import numpy as np
-        # generate x random integers between 0 and y and count how many you get of each
-        x = 10000
-        y = 10
-        out = [0]*y
-        for i in range(x):
-            out[np.random.randint(y)] += 1
-        # work out the mean and standard deviation of the sample
-        mean = np.mean(out)
-        sigma = 0
-        for i in range(len(out)):
-            sigma += ((out[i]-mean)**2)/(len(out)+1)
-        import math
-        sigma = math.sqrt(sigma)
-        # make sure nothing statistically significant happened
-        self.assertGreater(3, (max(out)-mean)/sigma, "randint generated a non-random sample, try re-running the test as it could be a fluke")
-        self.assertGreater(3, (mean-min(out))/sigma, "randint generated a non-random sample, try re-running the test as it could be a fluke")
+class TestIterators(unittest.TestCase):
+	
+	def test_iternext(self):
+		a = [1,2,3,4]
+		a = dict(one=1, two=2, three=3, four=4, five=5)
+		b = a.__iter__()
+		n = 3
+		for i in range(0, n):
+			c = b.next()
+		d = it.test_iternext(a, n)
+		self.assertEqual(c, d)
+	
+	def test_nprand(self):
+		import numpy as np
+		# generate x random integers between 0 and y and count how many you get of each
+		x = 10000
+		y = 10
+		out = [0]*y
+		for i in range(x):
+			out[np.random.randint(y)] += 1
+		# work out the mean and standard deviation of the sample
+		mean = np.mean(out)
+		sigma = 0
+		for i in range(len(out)):
+			sigma += ((out[i]-mean)**2)/(len(out)+1)
+		import math
+		sigma = math.sqrt(sigma)
+		# make sure nothing statistically significant happened
+		self.assertGreater(3, (max(out)-mean)/sigma, "randint generated a non-random sample, try re-running the test as it could be a fluke")
+		self.assertGreater(3, (mean-min(out))/sigma, "randint generated a non-random sample, try re-running the test as it could be a fluke")
 
 
 
 if __name__ == '__main__':
-    #suite = unittest.TestLoader().loadTestsFromName("test_npRand", Test_Iterators)
-    #unittest.TextTestRunner(verbosity=2).run(suite)
-    #suite = unittest.TestLoader().loadTestsFromName("test_iternext", Test_Iterators)
-    #unittest.TextTestRunner(verbosity=2).run(suite)
-    unittest.main()
+	#suite = unittest.TestLoader().loadTestsFromName("test_nprand", TestIterators)
+	#unittest.TextTestRunner(verbosity=2).run(suite)
+	#suite = unittest.TestLoader().loadTestsFromName("test_iternext", TestIterators)
+	#unittest.TextTestRunner(verbosity=2).run(suite)
+	unittest.main()

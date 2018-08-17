@@ -43,8 +43,6 @@
 // This macro, when in in pyMethodDef, will expose test_functionName to python
 #define MapTest(X) { "test_"#X, (PyCFunction)test_ ## X, METH_VARARGS, "This tests the "#X" function" }
 
-static char Iterators_docs[]= "this tests the PyFile API";
-
 // define functions
 static PyObject* test_iternext(PyObject *self, PyObject *args){
 	PyObject *Obj;
@@ -75,5 +73,5 @@ static PyMethodDef IteratorsMethods[] = {
 PyMODINIT_FUNC
 initIteratorsTest(void)
 {
-	(void)Py_InitModule3("IteratorsTest", IteratorsMethods, Iterators_docs);
+	(void)Py_InitModule3("IteratorsTest", IteratorsMethods, "this tests the PyFile API");
 }

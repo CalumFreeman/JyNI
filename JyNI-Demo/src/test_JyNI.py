@@ -200,17 +200,17 @@ class TestJyNI(unittest.TestCase):
 			self.assertEqual(exc[0], SystemError)
 			self.assertEqual(str(exc[1]), "This is a test exception message for JyNI.")
 	
-# 	# When this test fails, it throws a segfault. We should find a way to test without doing this!
-# 	def test_bad_exception(self):
-# 		# This tests that no segfault is thrown by a C extension trying to call an exception object directly.
-# 		# The following code does not catch the segfault since "Signal already used by VM or OS: SIGSEGV"
-# 		#a = False
-# 		#import signal
-# 		#def sig_handler(signum, frame):
-# 		#	print "Hi"
-# 		#	a = True
-# 		#signal.signal(signal.SIGSEGV, sig_handler)
-# 		DemoExtension.badExceptionTest()
+	# When this test fails, it throws a segfault. We should find a way to test without doing this!
+	def test_bad_exception(self):
+		# This tests that no segfault is thrown by a C extension trying to call an exception object directly.
+		# The following code does not catch the segfault since "Signal already used by VM or OS: SIGSEGV"
+		#a = False
+		#import signal
+		#def sig_handler(signum, frame):
+		#	print "Hi"
+		#	a = True
+		#signal.signal(signal.SIGSEGV, sig_handler)
+		DemoExtension.badExceptionTest()
 			
 
 	def test_new_style_classes(self):
@@ -278,4 +278,6 @@ class TestJyNI(unittest.TestCase):
 
 
 if __name__ == '__main__':
-	unittest.main()
+	suite = unittest.TestLoader().loadTestsFromName("test_bad_exception", TestJyNI)
+	unittest.TextTestRunner(verbosity=2).run(suite)
+	#unittest.main()
