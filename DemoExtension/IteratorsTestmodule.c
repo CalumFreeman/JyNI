@@ -51,7 +51,7 @@ static PyObject* test_iternext(PyObject *self, PyObject *args){
 	int num;
 	int i;
 	if (!PyArg_ParseTuple(args, "Oi", &Obj, &num)) {
-		printf("PyArg_ParseTuple in testPyFile_PyFile_Check didn't work\n");
+		printf("PyArg_ParseTuple didn't work\n");
 		return NULL;
 	}
 	iterator = Obj->ob_type->tp_iter(Obj);
@@ -61,10 +61,64 @@ static PyObject* test_iternext(PyObject *self, PyObject *args){
 	return Py_BuildValue("O", thing);
 }
 
+static PyObject* test_tp_as_sequence_sq_contains(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	char *key;
+	int i;
+	if (!PyArg_ParseTuple(args, "Os", &Obj, &key)) {
+		printf("PyArg_ParseTuple in test_tp_as_sequence_sq_contains didn't work\n");
+		return NULL;
+	}
+	PyObject *pkey = PyString_FromString(key);
+	return Py_BuildValue("i", Obj->ob_type->tp_as_sequence->sq_contains(Obj, pkey));
+}
+
+static PyObject* test_tp_as_mapping_mp_length(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	if (!PyArg_ParseTuple(args, "O", &Obj)) {
+		printf("PyArg_ParseTuple didn't work\n");
+		return NULL;
+	}
+	return Py_BuildValue("i", Obj->ob_type->tp_as_mapping->mp_length(Obj));
+}
+
+static PyObject* test_tp_as_mapping_mp_subscript(PyObject *self, PyObject *args){
+	// takes map and key, returns value?
+	PyObject *Obj;
+	char *key;
+		if (!PyArg_ParseTuple(args, "Os", &Obj, &key)) {
+		printf("PyArg_ParseTuple didn't work\n");
+		return NULL;
+	}
+	PyObject *pkey = PyString_FromString(key);
+	return Obj->ob_type->tp_as_mapping->mp_subscript(Obj, pkey);
+}
+
+static PyObject* test_tp_as_mapping_mp_ass_subscript(PyObject *self, PyObject *args){
+	// takes map and key, returns value?
+	PyObject *Obj;
+	char *key;
+	int newValue;
+	if (!PyArg_ParseTuple(args, "Osi", &Obj, &key, &newValue)) {
+		printf("PyArg_ParseTuple didn't work\n");
+		return NULL;
+	}
+	PyObject *pkey = PyString_FromString(key);
+	PyObject *pval = Py_BuildValue("i", newValue);
+	return Py_BuildValue("i", Obj->ob_type->tp_as_mapping->mp_ass_subscript(Obj, pkey, pval));
+}
+
+// (printfunc)dict_print, (cmpfunc)dict_compare, &dict_as_mapping, PyObject_GenericGetAttr, dict_traverse, dict_tp_clear, dict_richcompare, mapp_methods,
+
+
 
 // declare module map
 static PyMethodDef IteratorsMethods[] = {
 		MapTest(iternext),
+		MapTest(tp_as_sequence_sq_contains),
+		MapTest(tp_as_mapping_mp_length),
+		MapTest(tp_as_mapping_mp_subscript),
+		MapTest(tp_as_mapping_mp_ass_subscript),
 		{ NULL, NULL, 0, NULL }
 
 };

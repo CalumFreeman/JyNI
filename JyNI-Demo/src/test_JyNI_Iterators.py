@@ -80,14 +80,37 @@ import IteratorsTest as it
 class TestIterators(unittest.TestCase):
 	
 	def test_iternext(self):
-		a = [1,2,3,4]
-		a = dict(one=1, two=2, three=3, four=4, five=5)
-		b = a.__iter__()
-		n = 3
-		for i in range(0, n):
-			c = b.next()
-		d = it.test_iternext(a, n)
-		self.assertEqual(c, d)
+		dictionary = dict(one=1, two=2, three=3, four=4, five=5)
+		python_iterator = dictionary.__iter__()
+		number_of_iterations = 3
+		for i in range(0, number_of_iterations):
+			python_result = python_iterator.next()
+		c_extension_result = it.test_iternext(dictionary, number_of_iterations)
+		self.assertEqual(python_result, c_extension_result)
+	
+	def test_tp_as_sequence_sq_contains(self):
+		dictionary = dict(one=1, two=2, three=3, four=4, five=5)
+		key = "two"
+		c_extension_result = it.test_tp_as_sequence_sq_contains(dictionary, key)
+		self.assertTrue(c_extension_result)
+		
+	def test_tp_as_mapping_mp_length(self):
+		dictionary = dict(one=1, two=2, three=3, four=4, five=5)
+		length = it.test_tp_as_mapping_mp_length(dictionary)
+		self.assertEqual(length, len(dictionary))
+	
+	def test_tp_as_mapping_mp_subscript(self):
+		dictionary = dict(one=1, two=2, three=3, four=4, five=5)
+		key = "two"
+		value = it.test_tp_as_mapping_mp_subscript(dictionary, key)
+		self.assertEqual(dictionary[key], value)
+	
+	def test_tp_as_mapping_mp_ass_subscript(self):
+		dictionary = dict(one=1, two=2, three=3, four=4, five=5)
+		key = "two"
+		new_value = 6
+		it.test_tp_as_mapping_mp_ass_subscript(dictionary, key, new_value)
+		self.assertEqual(dictionary[key], new_value)
 	
 	def test_nprand(self):
 		import numpy as np
@@ -111,8 +134,15 @@ class TestIterators(unittest.TestCase):
 
 
 if __name__ == '__main__':
+	# This code can be commented in/out to allow individual tests to be ran
 	#suite = unittest.TestLoader().loadTestsFromName("test_nprand", TestIterators)
 	#unittest.TextTestRunner(verbosity=2).run(suite)
 	#suite = unittest.TestLoader().loadTestsFromName("test_iternext", TestIterators)
+	#unittest.TextTestRunner(verbosity=2).run(suite)
+	#suite = unittest.TestLoader().loadTestsFromName("test_tp_as_mapping_mp_length", TestIterators)
+	#unittest.TextTestRunner(verbosity=2).run(suite)
+	#suite = unittest.TestLoader().loadTestsFromName("test_tp_as_mapping_mp_subscript", TestIterators)
+	#unittest.TextTestRunner(verbosity=2).run(suite)
+	#suite = unittest.TestLoader().loadTestsFromName("test_tp_as_mapping_mp_ass_subscript", TestIterators)
 	#unittest.TextTestRunner(verbosity=2).run(suite)
 	unittest.main()
