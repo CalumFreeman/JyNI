@@ -2583,18 +2583,18 @@ PyDict_Contains(PyObject *op, PyObject *key)
 //}
 //
 ///* Hack to implement "key in dict" */
-//static PySequenceMethods dict_as_sequence = {
-//	0,						  /* sq_length */
-//	0,						  /* sq_concat */
-//	0,						  /* sq_repeat */
-//	0,						  /* sq_item */
-//	0,						  /* sq_slice */
-//	0,						  /* sq_ass_item */
-//	0,						  /* sq_ass_slice */
-//	PyDict_Contains,			/* sq_contains */
-//	0,						  /* sq_inplace_concat */
-//	0,						  /* sq_inplace_repeat */
-//};
+static PySequenceMethods dict_as_sequence = {
+	0,						  /* sq_length */
+	0,						  /* sq_concat */
+	0,						  /* sq_repeat */
+	0,						  /* sq_item */
+	0,						  /* sq_slice */
+	0,						  /* sq_ass_item */
+	0,						  /* sq_ass_slice */
+	PyDict_Contains,			/* sq_contains */
+	0,						  /* sq_inplace_concat */
+	0,						  /* sq_inplace_repeat */
+};
 
 static PyObject *
 dict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -2666,7 +2666,7 @@ PyTypeObject PyDict_Type = {
 	0,//(cmpfunc)dict_compare,                  /* tp_compare */
 	(reprfunc)dict_repr,                        /* tp_repr */
 	0,                                          /* tp_as_number */
-	0,//&dict_as_sequence,                      /* tp_as_sequence */
+	&dict_as_sequence,                      /* tp_as_sequence */
 	&dict_as_mapping,                       /* tp_as_mapping */
 	(hashfunc)PyObject_HashNotImplemented,      /* tp_hash */
 	0,                                          /* tp_call */
