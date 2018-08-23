@@ -981,7 +981,12 @@ frozenset_hash(PyObject *self)
 //}
 
 ///***** Set iterator type ***********************************************/
-//
+
+typedef struct {
+	PyObject_HEAD
+	jobject si_iter;
+} setiterobject;
+
 //typedef struct {
 //	PyObject_HEAD
 //	PySetObject *si_set; /* Set to NULL when iterator is exhausted */
@@ -989,14 +994,30 @@ frozenset_hash(PyObject *self)
 //	Py_ssize_t si_pos;
 //	Py_ssize_t len;
 //} setiterobject;
-//
+
+static void
+setiter_dealloc(setiterobject *si)
+{
+	// I think the underlying jobject will be dealt with by java once no refs are there: https://stackoverflow.com/questions/9369907/jni-objects-creation-and-memory-management
+	si->si_iter = NULL;
+	_JyNI_GC_UNTRACK(si);
+	PyObject_GC_Del(si);
+}
+
 //static void
 //setiter_dealloc(setiterobject *si)
 //{
 //	Py_XDECREF(si->si_set);
 //	PyObject_GC_Del(si);
 //}
-//
+
+static int
+setiter_traverse(setiterobject *si, visitproc visit, void *arg)
+{
+	// should be no need to visit si->si_iter since it isn't a PyObject type thing and isn't tracked by GC or referenced by anything other than the setiterobject
+	return 0;
+}
+
 //static int
 //setiter_traverse(setiterobject *si, visitproc visit, void *arg)
 //{
@@ -1019,7 +1040,16 @@ frozenset_hash(PyObject *self)
 //	{"__length_hint__", (PyCFunction)setiter_len, METH_NOARGS, length_hint_doc},
 //	{NULL,			  NULL}		   /* sentinel */
 //};
-//
+
+static PyObject *setiter_iternext(setiterobject *si)
+{
+	jobject jiter = si->si_iter;
+	if (jiter == NULL)
+				return NULL;
+	env(NULL);
+	return JyNI_PyObject_FromJythonPyObject((*env)->CallObjectMethod(env, jiter, pyObject___iternext__));
+}
+
 //static PyObject *setiter_iternext(setiterobject *si)
 //{
 //	PyObject *key;
@@ -1058,39 +1088,55 @@ frozenset_hash(PyObject *self)
 //	return NULL;
 //}
 //
-//static PyTypeObject PySetIter_Type = {
-//	PyVarObject_HEAD_INIT(&PyType_Type, 0)
-//	"setiterator",							  /* tp_name */
-//	sizeof(setiterobject),					  /* tp_basicsize */
-//	0,										  /* tp_itemsize */
-//	/* methods */
-//	(destructor)setiter_dealloc,				/* tp_dealloc */
-//	0,										  /* tp_print */
-//	0,										  /* tp_getattr */
-//	0,										  /* tp_setattr */
-//	0,										  /* tp_compare */
-//	0,										  /* tp_repr */
-//	0,										  /* tp_as_number */
-//	0,										  /* tp_as_sequence */
-//	0,										  /* tp_as_mapping */
-//	0,										  /* tp_hash */
-//	0,										  /* tp_call */
-//	0,										  /* tp_str */
-//	PyObject_GenericGetAttr,					/* tp_getattro */
-//	0,										  /* tp_setattro */
-//	0,										  /* tp_as_buffer */
-//	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,/* tp_flags */
-//	0,										  /* tp_doc */
-//	(traverseproc)setiter_traverse,			 /* tp_traverse */
-//	0,										  /* tp_clear */
-//	0,										  /* tp_richcompare */
-//	0,										  /* tp_weaklistoffset */
-//	PyObject_SelfIter,						  /* tp_iter */
-//	(iternextfunc)setiter_iternext,			 /* tp_iternext */
-//	setiter_methods,							/* tp_methods */
-//	0,
-//};
-//
+PyTypeObject PySetIter_Type = {
+	PyVarObject_HEAD_INIT(&PyType_Type, 0)
+	"setiterator",							  /* tp_name */
+	sizeof(setiterobject),					  /* tp_basicsize */
+	0,										  /* tp_itemsize */
+	/* methods */
+	(destructor)setiter_dealloc,				/* tp_dealloc */
+	0,										  /* tp_print */
+	0,										  /* tp_getattr */
+	0,										  /* tp_setattr */
+	0,										  /* tp_compare */
+	0,										  /* tp_repr */
+	0,										  /* tp_as_number */
+	0,										  /* tp_as_sequence */
+	0,										  /* tp_as_mapping */
+	0,										  /* tp_hash */
+	0,										  /* tp_call */
+	0,										  /* tp_str */
+	PyObject_GenericGetAttr,					/* tp_getattro */
+	0,										  /* tp_setattro */
+	0,										  /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,/* tp_flags */
+	0,										  /* tp_doc */
+	(traverseproc)setiter_traverse,			 /* tp_traverse */
+	0,										  /* tp_clear */
+	0,										  /* tp_richcompare */
+	0,										  /* tp_weaklistoffset */
+	PyObject_SelfIter,						  /* tp_iter */
+	(iternextfunc)setiter_iternext,			 /* tp_iternext */
+	0,//setiter_methods,							/* tp_methods */ //TODO work out how to deal with setiter_len (replace PyObject_GenericGetAttr)
+	0,
+};
+
+set_iter(PySetObject *set)
+{
+	setiterobject *si;
+	jobject jset, jsetIter;
+	si = PyObject_GC_New(setiterobject, &PySetIter_Type);
+	if (si == NULL)
+		return NULL;
+	Py_INCREF(set);
+	jset = JyNI_JythonPyObject_FromPyObject(set);
+	env(NULL);
+	jsetIter = (*env)->CallObjectMethod(env, jset, pyObject___iter__);
+	si->si_iter = jsetIter;
+	_JyNI_GC_TRACK(si);
+	return (PyObject *)si;
+}
+//Python Code:
 //static PyObject *
 //set_iter(PySetObject *so)
 //{
@@ -2478,7 +2524,7 @@ PyTypeObject PySet_Type = {
 	(inquiry)set_clear_internal,           /* tp_clear */
 	(richcmpfunc)set_richcompare,          /* tp_richcompare */
 	offsetof(PySetObject, weakreflist),    //JyNI todo: repair this line	 /* tp_weaklistoffset */
-	0,//(getiterfunc)set_iter,             /* tp_iter */
+	(getiterfunc)set_iter,             /* tp_iter */
 	0,                                     /* tp_iternext */
 	set_methods,                           /* tp_methods */
 	0,                                     /* tp_members */
@@ -2577,7 +2623,7 @@ PyTypeObject PyFrozenSet_Type = {
 	(inquiry)set_clear_internal,        /* tp_clear */
 	(richcmpfunc)set_richcompare,       /* tp_richcompare */
 	offsetof(PySetObject, weakreflist),		//JyNI todo: repair this /* tp_weaklistoffset */
-	0,//(getiterfunc)set_iter,          /* tp_iter */
+	(getiterfunc)set_iter,          /* tp_iter */
 	0,                                  /* tp_iternext */
 	frozenset_methods,                  /* tp_methods */
 	0,                                  /* tp_members */
