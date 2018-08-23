@@ -2660,7 +2660,7 @@ PyTypeObject PyDict_Type = {
 	sizeof(PyObject),//sizeof(PyDictObject),
 	0,
 	(destructor)dict_dealloc,                   /* tp_dealloc */
-	0,//(printfunc)dict_print,                  /* tp_print */
+	0,//(printfunc)dict_print,                  /* tp_print */ //Docs recomend not implementing? https://docs.python.org/2.7/c-api/typeobj.html?highlight=tp_print#c.PyTypeObject.tp_print
 	0,                                          /* tp_getattr */
 	0,                                          /* tp_setattr */
 	0,//(cmpfunc)dict_compare,                  /* tp_compare */
@@ -2671,14 +2671,14 @@ PyTypeObject PyDict_Type = {
 	(hashfunc)PyObject_HashNotImplemented,      /* tp_hash */
 	0,                                          /* tp_call */
 	0,                                          /* tp_str */
-	0,// PyObject_GenericGetAttr,               /* tp_getattro */
+	PyObject_GenericGetAttr,               /* tp_getattro */
 	0,                                          /* tp_setattro */
 	0,                                          /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | //Py_TPFLAGS_HAVE_GC |
 		Py_TPFLAGS_DICT_SUBCLASS,               /* tp_flags */
 	dictionary_doc,                             /* tp_doc */
-	0,//dict_traverse,                          /* tp_traverse */
-	0,//dict_tp_clear,                          /* tp_clear */
+	0,//dict_traverse,                          /* tp_traverse */ // since GC flag not set, don't need to implement
+	0,//dict_tp_clear,                          /* tp_clear */ // since GC flag not set, don't need to implement
 	0,//dict_richcompare,                       /* tp_richcompare */
 	0,                                          /* tp_weaklistoffset */
 	(getiterfunc)dict_iter,                 /* tp_iter */
