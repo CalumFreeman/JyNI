@@ -79,13 +79,33 @@ import IteratorsTest as it
 
 class TestIterators(unittest.TestCase):
 	
-	def test_iternext(self):
+	def test_dict_iternext(self):
 		dictionary = dict(one=1, two=2, three=3, four=4, five=5)
 		python_iterator = dictionary.__iter__()
 		number_of_iterations = 3
 		for i in range(0, number_of_iterations):
 			python_result = python_iterator.next()
 		c_extension_result = it.test_iternext(dictionary, number_of_iterations)
+		self.assertEqual(python_result, c_extension_result)
+	
+	def test_set_iternext(self):
+		set_obj = set(["one", "two", "three", "four", "five"])
+		self.assertEqual(set, type(set_obj))
+		python_iterator = set_obj.__iter__()
+		number_of_iterations = 3
+		for i in range(0, number_of_iterations):
+			python_result = python_iterator.next()
+		c_extension_result = it.test_iternext(set_obj, number_of_iterations)
+		self.assertEqual(python_result, c_extension_result)
+	
+	def test_frozenset_iternext(self):
+		frozen_set_obj = frozenset(["one", "two", "three", "four", "five"])
+		self.assertEqual(frozenset, type(frozen_set_obj))
+		python_iterator = frozen_set_obj.__iter__()
+		number_of_iterations = 3
+		for i in range(0, number_of_iterations):
+			python_result = python_iterator.next()
+		c_extension_result = it.test_iternext(frozen_set_obj, number_of_iterations)
 		self.assertEqual(python_result, c_extension_result)
 	
 	def test_tp_as_sequence_sq_contains(self):
@@ -143,7 +163,11 @@ if __name__ == '__main__':
 	# This code can be commented in/out to allow individual tests to be ran
 	#suite = unittest.TestLoader().loadTestsFromName("test_nprand", TestIterators)
 	#unittest.TextTestRunner(verbosity=2).run(suite)
-	#suite = unittest.TestLoader().loadTestsFromName("test_iternext", TestIterators)
+	#suite = unittest.TestLoader().loadTestsFromName("test_dict_iternext", TestIterators)
+	#unittest.TextTestRunner(verbosity=2).run(suite)
+	#suite = unittest.TestLoader().loadTestsFromName("test_set_iternext", TestIterators)
+	#unittest.TextTestRunner(verbosity=2).run(suite)
+	#suite = unittest.TestLoader().loadTestsFromName("test_frozenset_iternext", TestIterators)
 	#unittest.TextTestRunner(verbosity=2).run(suite)
 	#suite = unittest.TestLoader().loadTestsFromName("test_tp_as_mapping_mp_length", TestIterators)
 	#unittest.TextTestRunner(verbosity=2).run(suite)
