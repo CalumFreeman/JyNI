@@ -112,6 +112,12 @@ class TestIterators(unittest.TestCase):
 		it.test_tp_as_mapping_mp_ass_subscript(dictionary, key, new_value)
 		self.assertEqual(dictionary[key], new_value)
 	
+	def test_tp_getattro(self):
+		dictionary = dict(one=1, two=2, three=3, four=4, five=5)
+		key = "two"
+		method = it.test_tp_getattro(dictionary, "__contains__")
+		self.assertEqual(dictionary.__contains__(key), method(key))
+	
 	def test_nprand(self):
 		import numpy as np
 		# generate x random integers between 0 and y and count how many you get of each

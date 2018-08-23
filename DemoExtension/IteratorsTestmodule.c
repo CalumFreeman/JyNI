@@ -108,8 +108,19 @@ static PyObject* test_tp_as_mapping_mp_ass_subscript(PyObject *self, PyObject *a
 	return Py_BuildValue("i", Obj->ob_type->tp_as_mapping->mp_ass_subscript(Obj, pkey, pval));
 }
 
-// (printfunc)dict_print, (cmpfunc)dict_compare, &dict_as_mapping, PyObject_GenericGetAttr, dict_traverse, dict_tp_clear, dict_richcompare, mapp_methods,
+static PyObject* test_tp_getattro(PyObject *self, PyObject *args){
+	PyObject *Obj;
+	char *Cname;
+	if (!PyArg_ParseTuple(args, "Os", &Obj, &Cname)) {
+		printf("PyArg_ParseTuple didn't work\n");
+		return NULL;
+	}
+	PyObject *name = PyString_FromString(Cname);
+	return Obj->ob_type->tp_getattro(Obj, name);
+}
 
+// still to implement: (cmpfunc)dict_compare, dict_tp_clear, dict_richcompare, mapp_methods,
+// may not be needed: dict_traverse, (printfunc)dict_print,
 
 
 // declare module map
@@ -119,6 +130,7 @@ static PyMethodDef IteratorsMethods[] = {
 		MapTest(tp_as_mapping_mp_length),
 		MapTest(tp_as_mapping_mp_subscript),
 		MapTest(tp_as_mapping_mp_ass_subscript),
+		MapTest(tp_getattro),
 		{ NULL, NULL, 0, NULL }
 
 };
