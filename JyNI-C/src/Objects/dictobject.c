@@ -46,15 +46,16 @@
 // * tuple automatically so that tuple keys are not unpacked as the
 // * exception arguments. */
 //static void
-//set_key_error(PyObject *arg)
-//{
-//	PyObject *tup;
-//	tup = PyTuple_Pack(1, arg);
-//	if (!tup)
-//		return; /* caller will expect error to be set anyway */
-//	PyErr_SetObject(PyExc_KeyError, tup);
-//	Py_DECREF(tup);
-//}
+set_key_error(PyObject *arg)
+{
+	jputs("JyNI Warning: set_key_error in dictobject.c not tested yet");
+	PyObject *tup;
+	tup = PyTuple_Pack(1, arg);
+	if (!tup)
+		return; /* caller will expect error to be set anyway */
+	PyErr_SetObject(PyExc_KeyError, tup);
+	Py_DECREF(tup);
+}
 //
 ///* Define this out if you don't want conversion statistics on exit. */
 //#undef SHOW_CONVERSION_COUNTS
