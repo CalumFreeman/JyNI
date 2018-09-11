@@ -32,6 +32,11 @@
 
 
 /* File object implementation */
+/*
+ * JyNI note:
+ * For discussion of this implementation, see:
+ * https://github.com/Stewori/JyNI/issues/11
+ */
 
 #define PY_SSIZE_T_CLEAN
 #include "JyNI.h"
@@ -113,10 +118,6 @@ extern "C" {
 //    }
 //    return sts;
 // }
-/*
- * JyNI note:
- * See https://github.com/Stewori/JyNI/issues/11
- */
 FILE *
 PyFile_AsFile(PyObject *f)
 {
@@ -2192,7 +2193,7 @@ file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	// This implementation was based on PySet, in some places the code from there is shown for comparison
 	register PyFileObject *fo = NULL;
 
-	fo = (PySetObject *)type->tp_alloc(type, 0);
+	fo = (PyFileObject *)type->tp_alloc(type, 0);
 	if (fo == NULL)
 		return NULL;
 	/* tp_alloc has already zeroed the structure, TODO: assert contents are 0*/
@@ -2474,33 +2475,25 @@ PyFile_SoftSpace(PyObject *f, int newflag)
 }
 
 // Interfaces to write objects/strings to file-like objects
-
-static PyObject *PyFile_GetEncoding(PyObject *f){
-	cstr_decl(cEnc);
-	env(NULL);
-	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
-	jstring jEnc = (*env)->GetObjectField(env, jfile, pyFile_encodingField);
-	if(jEnc){
-		cstr_from_jstring(cEnc, jEnc);
-		return PyString_FromString(cEnc);
-	}
-	Py_RETURN_NONE;
-
-}
-static PyObject *PyFile_GetErrors(PyObject *f){
-	cstr_decl(cErr);
-	env(NULL);
-	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
-	jstring jErr = (*env)->GetObjectField(env, jfile, pyFile_errorsField);
-	if(jErr){
-		cstr_from_jstring(cErr, jErr);
-		return PyString_FromString(cErr);
-	}
-	Py_RETURN_NONE;
-}
+// TODO this may not deal with unicode, it may be fine because it is passing everything into jython, but I'm not sure
 int
 PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
 {
+	if (f == NULL) {
+		if (!PyErr_Occurred()){
+			PyErr_SetString(PyExc_SystemError, "null file for PyFile_WriteString");
+		}
+		return -1;
+	} else if (PyFile_Check(f)) {
+		jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
+		PyObject *ps = PyObject_Str(v);
+		char *s = PyString_AsString(ps);
+		env(-1);
+		(*env)->CallObjectMethod(env, jfile, pyFile_write, (*env)->NewStringUTF(env, s));
+		return 0; // TODO JNI exception handling? what if pyFile_write throws an exception?
+	} else
+		return -1;
+} /* CPython Implementation:
     PyObject *writer, *value, *args, *result;
     if (f == NULL) {
         PyErr_SetString(PyExc_TypeError, "writeobject with NULL file");
@@ -2509,10 +2502,10 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
     else if (PyFile_Check(f)) {
         PyFileObject *fobj = (PyFileObject *) f;
 #ifdef Py_USING_UNICODE
-        PyObject *enc = PyFile_GetEncoding(fobj);
+        PyObject *enc = fobj->f_encoding;
         int result;
 #endif
-        if (!is_file_open(f)) {
+        if (fobj->f_fp == NULL) {
             err_closed();
             return -1;
         }
@@ -2520,8 +2513,8 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
         if ((flags & Py_PRINT_RAW) &&
             PyUnicode_Check(v) && enc != Py_None) {
             char *cenc = PyString_AS_STRING(enc);
-            char *errors = PyFile_GetErrors(fobj) == Py_None ?
-              "strict" : PyString_AS_STRING(PyFile_GetErrors(fobj));
+            char *errors = fobj->f_errors == Py_None ?
+              "strict" : PyString_AS_STRING(fobj->f_errors);
             value = PyUnicode_AsEncodedString(v, cenc, errors);
             if (value == NULL)
                 return -1;
@@ -2567,12 +2560,12 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
     Py_DECREF(result);
     return 0;
 }
+*/
 
 int
 PyFile_WriteString(const char *s, PyObject *f)
 {
 	if (f == NULL) {
-		/* Should be caused by a pre-existing error */
 		if (!PyErr_Occurred()){
 			PyErr_SetString(PyExc_SystemError, "null file for PyFile_WriteString");
 		}
@@ -2581,7 +2574,7 @@ PyFile_WriteString(const char *s, PyObject *f)
 		jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
 		env(NULL);
 		(*env)->CallObjectMethod(env, jobj, pyFile_write, (*env)->NewStringUTF(env, s));
-		Py_RETURN_NONE; // TODO JNI exception handling? what if pyFile_write throws an exception?
+		return 0; // TODO JNI exception handling? what if pyFile_write throws an exception?
 	} else if (!PyErr_Occurred()) {
 		PyObject *v = PyString_FromString(s);
 		int err;
@@ -2592,7 +2585,6 @@ PyFile_WriteString(const char *s, PyObject *f)
 		return err;
 	} else
 	return -1;
-
     /* CPython Implementation:
     if (f == NULL) {
         // Should be caused by a pre-existing error
