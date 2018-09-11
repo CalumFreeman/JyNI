@@ -70,7 +70,7 @@ static PyObject* testPyFile_PyFile_WriteString(PyObject *self, PyObject *args) {
 
 	// TODO check that the file actually wrote successfully check with empty and non-empty files
 	int successReturn = PyFile_WriteString(myStr, f);
-	if(successReturn==0) return Py_BuildValue("i", -1);
+	if(successReturn!=0) return Py_BuildValue("i", -1);
 
 	int errorReturn = PyFile_WriteString(myStr, NULL);
 	if(errorReturn!=-1) return Py_BuildValue("i", -1);
@@ -191,7 +191,7 @@ static PyObject* testPyFile_PyFile_IncUseCount(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	PyFile_IncUseCount((PyFileObject *)Obj);
-	return Py_BuildValue("i", 1);return NULL;
+	return Py_BuildValue("i", 1);
 }
 
 static PyObject* testPyFile_PyFile_DecUseCount(PyObject *self, PyObject *args){
@@ -201,7 +201,7 @@ static PyObject* testPyFile_PyFile_DecUseCount(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	PyFile_DecUseCount((PyFileObject *)Obj);
-	return Py_BuildValue("i", 1);return NULL;
+	return Py_BuildValue("i", 1);
 }
 
 static PyObject* testPyFile_PyObject_AsFileDescriptor(PyObject *self, PyObject *args){
@@ -221,9 +221,10 @@ static PyObject* testPyFile_PyFile_WriteObject(PyObject *self, PyObject *args){
 		printf("PyArg_ParseTuple in testPyFile_PyObject_AsFileDescriptor didn't work\n");
 		return NULL;
 	}
-	PyFile_WriteObject(ToPrint, Obj, flags);
-	//PyFile_WriteString("hi", Obj);
-	return Py_BuildValue("i", 1);
+	// TODO check that the file actually wrote successfully check with empty and non-empty files
+	int successReturn = PyFile_WriteObject(ToPrint, Obj, flags);
+	if(successReturn!=0) return Py_BuildValue("i", -1);
+	return Py_BuildValue("i", 0);
 }
 
 static PyObject* testPyFile_tp_repr(PyObject *self, PyObject *args){
@@ -312,7 +313,7 @@ static PyObject* testPyFile_tp_new(PyObject *self, PyObject *args){
 		printf("PyArg_ParseTuple in testPyFile_file_repr didn't work\n");
 		return NULL;
 	}
-	return Py_BuildValue("O", Obj->ob_type->tp_new(NULL, NULL, NULL));
+	return Py_BuildValue("O", Obj->ob_type->tp_new(&PyFile_Type, NULL, NULL));
 }
 static PyObject* testPyFile_tp_init(PyObject *self, PyObject *args){
 	PyObject *Obj;

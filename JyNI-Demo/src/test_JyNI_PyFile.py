@@ -177,37 +177,26 @@ class TestPyFile(unittest.TestCase):
 		pf.test_PyFile_DecUseCount(self.file)
 	
 	def test_PyFile_WriteObject(self):
-		Object = 4
-		pf.test_PyFile_WriteObject(self.file, Object, 0)
-		self.file.write("\n")
-		self.file.close()
-		self.file = open(self.name, "r+")
-		self.assertEqual(self.file.read(), str(Object)+"\n")
-		self.file = open(self.name, self.mode)
-		Object = [2,3]
-		pf.test_PyFile_WriteObject(self.file, Object, 0)
-		self.file.write("\n")
-		self.file.close()
-		self.file = open(self.name, "r+")
-		self.assertEqual(self.file.read(), str(Object)+"\n")
-		self.file = open(self.name, self.mode)
-		Object = "some weird object should go here"
-		pf.test_PyFile_WriteObject(self.file, Object, 0)
-		self.file.write("\n")
-		self.file.close()
-		self.file = open(self.name, "r+")
-		self.assertEqual(self.file.read(), "\'"+str(Object)+"\'\n")
-		self.file = open(self.name, self.mode)
+		def check(Object):
+			thing = pf.test_PyFile_WriteObject(self.file, Object, 0)
+			self.assertEqual(thing, 0, "Error while writing object to file")
+			self.file.write("\n")
+			self.file.close()
+			self.file = open(self.name, "r")
+			self.assertEqual(self.file.read(), str(Object)+"\n")
+			self.file = open(self.name, self.mode)
+		check(4)
+		check([2,3])
+		# some weird object should also be checked
 	
 	def test_PyObject_AsFileDescriptor(self):
 		self.assertEqual(pf.test_PyObject_AsFileDescriptor(4), 4)
 		self.assertEqual(pf.test_PyObject_AsFileDescriptor(4.4), -1)
-		print pf.test_PyObject_AsFileDescriptor(self.file) # need to compare with actuall file descriptor!
-		self.assertFalse(True, "Not yet implemented")
+		self.assertEqual(pf.test_PyObject_AsFileDescriptor(self.file), int(self.file.fileno()))
 		
 	def test_tp_dealloc(self):
-		print pf.test_tp_dealloc(self.file)
-		self.assertFalse(True, "Not yet implemented")
+		#print pf.test_tp_dealloc(self.file)
+		raise(Exception("Not yet Implemented"))
 		
 	def test_tp_repr(self):
 		self.assertEqual(str(self.file), pf.test_tp_repr(self.file))
@@ -263,12 +252,12 @@ class TestPyFile(unittest.TestCase):
 		self.assertEqual(self.file.__doc__, pf.test_tp_doc(self.file))
 		
 	def test_tp_iter(self):
-		print pf.test_tp_iter(self.file)
-		self.assertTrue(False, "not done yet")
+		#print pf.test_tp_iter(self.file)
+		raise(Exception("Not yet Implemented"))
 		
 	def test_tp_iternext(self):
-		print pf.test_tp_iternext(self.file)
-		self.assertTrue(False, "not done yet")
+		#print pf.test_tp_iternext(self.file)
+		raise(Exception("Not yet Implemented"))
 	
 	def test_file_readline(self):
 		L1 = "Hello\n"
@@ -427,19 +416,20 @@ class TestPyFile(unittest.TestCase):
 		self.assertEqual(self.file.mode, newMode)
 	
 	def test_tp_alloc(self):
-		self.assertFalse(True, "Not yet implemented")
+		raise(Exception("Not yet Implemented"))
 	
 	def test_tp_new(self):
 		f = pf.test_tp_new(self.file)
 		self.assertEqual(type(f), type(self.file))
 		
 	def test_tp_free(self):
-		self.assertFalse(True, "Not yet implemented")
+		raise(Exception("Not yet Implemented"))
 
 
 
 if __name__ == '__main__':
 	# Failing:
+	#print "start"
 	#suite = unittest.TestLoader().loadTestsFromName("test_tp_init", TestPyFile)
 	#unittest.TextTestRunner(verbosity=2).run(suite)
 	#suite = unittest.TestLoader().loadTestsFromName("test_tp_iter", TestPyFile)
