@@ -747,6 +747,7 @@ inline void initBuiltinTypes()
 	builtinTypes[TME_INDEX_File].py_type = &PyFile_Type;
 	builtinTypes[TME_INDEX_File].jy_class = pyFileClass;
 	builtinTypes[TME_INDEX_File].flags = JY_TRUNCATE_FLAG_MASK;
+	builtinTypes[TME_INDEX_File].truncate_trailing = sizeof(PyFileObject);
 	PyFile_Type.tp_flags |= Jy_TPFLAGS_DYN_OBJECTS;
 
 	//In JyNI no GC-type since it is fully truncated.

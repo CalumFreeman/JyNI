@@ -125,28 +125,34 @@ PyFile_AsFile(PyObject *f)
 	jobject jfile;
 	jint fd;
 	jstring jmode;
-	FILE *cFile;
 	char *cmode;
-	env(NULL);
+	PyFileObject *fObj = (PyFileObject *)f;
 	if (f == NULL){
 		jputs("PyFile_AsFile with NULL-pointer");
 		return NULL;
 	}
-	if(!(is_file_open(f))) return NULL; // NULL seems to be what functions expect to get when a file is closed
-	// get the file as a jythonPyObject
-	jfile = JyNI_JythonPyObject_FromPyObject(f);
+	// if the file is closed, set f_fp to NULL and return it
+	if(!is_file_open(f)){
+		fclose(fObj->f_fp);
+		fObj->f_fp = NULL;
+		return fObj->f_fp;
+	}
+	// TODO truncate trailing in builtintypes
+	// if the file is open and the file pointer hasn't been set, make a new file pointer and set it
+	if(fObj->f_fp==NULL){
+		env(NULL);
+		// get the file as a jythonPyObject
+		jfile = JyNI_JythonPyObject_FromPyObject(f);
+		// get the file descriptor and mode of the file
+		fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
+		jmode = (*env)->GetObjectField(env, jfile, pyFile_modeField);
+		// convert the mode to a c char * open the file and then release the string so it doesn't stay in memory
+		cmode = (*env)->GetStringUTFChars(env, jmode, 0);
+		fObj->f_fp  = fdopen((int)fd, cmode);
+		(*env)->ReleaseStringUTFChars(env, jmode, cmode);
+	}
+	return fObj->f_fp;
 
-	// get the file descriptor and mode of the file
-	fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
-	jmode = (*env)->GetObjectField(env, jfile, pyFile_modeField);
-
-	// convert the mode to a c char * open the file and then release the string so it doesn't stay in memory
-	cmode = (*env)->GetStringUTFChars(env, jmode, 0);
-	cFile = fdopen((int)fd, cmode); // This creates a new file which may never be removed as extensions expect it to be stored in the PyFileObject and be managed with PfInc/DecUseCount
-	(*env)->ReleaseStringUTFChars(env, jmode, cmode);
-
-	// return the file
-	return cFile;
 }
 /**
  * The decision was taken to simply have dummy methods for PyFile_IncUseCount and PyFile_DecUseCount as
@@ -163,17 +169,13 @@ PyFile_AsFile(PyObject *f)
 
 void PyFile_IncUseCount(PyFileObject *fobj)
 {
-	jputs("JyNI Warning: PyFile_IncUseCount not implemented.");
-	// CPythonImplmentation:
-	//fobj->unlocked_count++;
+	fobj->unlocked_count++;
 }
 
 void PyFile_DecUseCount(PyFileObject *fobj)
 {
-	jputs("JyNI Warning: PyFile_DecUseCount not implemented.");
-	// CPython Implementation:
-	//fobj->unlocked_count--;
-    //assert(fobj->unlocked_count >= 0);
+	fobj->unlocked_count--;
+	assert(fobj->unlocked_count >= 0);
 }
 
 PyObject *
@@ -220,31 +222,23 @@ int is_file_open(PyObject *f)
 	return (int)open;
 }
 
-
-/* This is a safe wrapper around PyObject_Print to print to the FILE
-   of a PyFileObject. PyObject_Print releases the GIL but knows nothing
-   about PyFileObject. */
-// JyNI Note: since we aren't using the PyFile_Inc(or Dec)UseCount, this isn't so safe and could fail (if the file pointer is GC'd part way through)
-// However, at current the file pointers aren't GC tracked at all so this isn't an issue (other unrelated issues are cause by the immortal files, but not this)
-static int
-file_PyObject_Print(PyObject *op, PyFileObject *f, int flags)
-{
-    int result;
-    PyFile_IncUseCount(f);
-    result = PyObject_Print(op, PyFile_AsFile(f), flags);
-    PyFile_DecUseCount(f);
-    return result;
-}
-
 static PyObject *
 close_the_file(PyFileObject *f)
-{ // since we aren't dealling with the PyInc/DecUse we don't need to check the unlockedcount, when that is implemented we will.
+{
 	jobject jobj;
-	if (f->ob_refcnt > 0) {
-		PyErr_SetString(PyExc_IOError, "close() called during concurrent operation on the same file object.");
+	if (f->unlocked_count > 0) {
+		if (f->ob_refcnt > 0) {
+			PyErr_SetString(PyExc_IOError, "close() called during concurrent operation on the same file object.");
+		} else {
+			// This should not happen unless someone is carelessly playing with the PyFileObject struct fields and/or its associated FILE pointer.
+			PyErr_SetString(PyExc_SystemError, "PyFileObject locking error in destructor (refcnt <= 0 at close).");
+		}
+		return NULL;
 	}
 	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
+	fclose(f->f_fp);
+	f->f_fp = NULL;
 	(*env)->CallObjectMethod(env, jobj, pyFile_file_close);
 	Py_RETURN_NONE;
 }
@@ -2214,6 +2208,7 @@ file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	 * - Maybe call JyNI_GC_EnsureHeadObject here.
 	 * - Maybe call JyNI_GC_Track_CStub
 	 */
+	fo->unlocked_count = 0; // f_fp is initialised on demand (PyFile_AsFile)
 	return (PyObject *)fo;
 }
 
