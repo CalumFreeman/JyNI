@@ -103,21 +103,16 @@
 extern "C" {
 #endif
 
- static PyObject *
- file_close(PyFileObject *f)
- {
- 	jobject jobj;
- 	jobj = JyNI_JythonPyObject_FromPyObject(f);
- 	env(NULL);
- 	(*env)->CallObjectMethod(env, jobj, pyFile_file_close);
- 	Py_RETURN_NONE; //I don't know what this is meant to return so it's returning none
- //    PyObject *sts = close_the_file(f);
- //    if (sts) {
- //        PyMem_Free(f->f_setbuf);
- //        f->f_setbuf = NULL;
- //    }
- //    return sts;
- }
+// static PyObject *
+// file_close(PyFileObject *f)
+// {
+//    PyObject *sts = close_the_file(f);
+//    if (sts) {
+//        PyMem_Free(f->f_setbuf);
+//        f->f_setbuf = NULL;
+//    }
+//    return sts;
+// }
 /*
  * JyNI note:
  * See https://github.com/Stewori/JyNI/issues/11
@@ -153,22 +148,29 @@ PyFile_AsFile(PyObject *f)
 	return cFile;
 }
 /**
- * The decision was taken to simply have dummy methods for PyFile_IncUseCount and PyFile_DecUseCount yet as
+ * The decision was taken to simply have dummy methods for PyFile_IncUseCount and PyFile_DecUseCount as
  * these functions are not commonly used in C Extensions. If a C extension is encountered which requires these
- * functions then they should be implemented at that point. The discussion around this took place here: https://github.com/Stewori/JyNI/issues/11
+ * functions then they should be implemented at that point. The discussion around this took place here:
+ * https://github.com/Stewori/JyNI/issues/11
  *
- * It may also be preferable to implement these on the jython side of things, this suggestion is reflected here: http://bugs.jython.org/issue2699
+ * It may also be preferable to implement these on the jython side of things, this suggestion is reflected here:
+ * http://bugs.jython.org/issue2699
+ *
+ * Note that if this is ever implemented, checks will need to be added to close_the_file to prevent something with
+ * non-zero unlocked_count from being deallocated
  */
 
 void PyFile_IncUseCount(PyFileObject *fobj)
 {
 	jputs("JyNI Warning: PyFile_IncUseCount not implemented.");
+	// CPythonImplmentation:
 	//fobj->unlocked_count++;
 }
 
 void PyFile_DecUseCount(PyFileObject *fobj)
 {
 	jputs("JyNI Warning: PyFile_DecUseCount not implemented.");
+	// CPython Implementation:
 	//fobj->unlocked_count--;
     //assert(fobj->unlocked_count >= 0);
 }
@@ -183,7 +185,7 @@ PyFile_Name(PyObject *f)
 	PyObject *pname;
 	env(NULL);
 	if (f == NULL){
-		jputs("PyFile_AsFile with NULL-pointer");
+		jputs("PyFile_Name with NULL-pointer");
 		return NULL;
 	}
 
@@ -209,7 +211,7 @@ int is_file_open(PyObject *f)
 	jint open;
 	env(-1);
 	if (f == NULL){
-		jputs("PyFile_AsFile with NULL-pointer");
+		jputs("is_file_open with NULL-pointer");
 		return -1;
 	}
 	jfile = JyNI_JythonPyObject_FromPyObject(f);
@@ -218,327 +220,34 @@ int is_file_open(PyObject *f)
 }
 
 
-// This is a safe wrapper around PyObject_Print to print to the FILE
-// of a PyFileObject. PyObject_Print releases the GIL but knows nothing
-// about PyFileObject.
+/* This is a safe wrapper around PyObject_Print to print to the FILE
+   of a PyFileObject. PyObject_Print releases the GIL but knows nothing
+   about PyFileObject. */
+// JyNI Note: since we aren't using the PyFile_Inc(or Dec)UseCount, this isn't so safe and could fail (if the file pointer is GC'd part way through)
+// However, at current the file pointers aren't GC tracked at all so this isn't an issue (other unrelated issues are cause by the immortal files, but not this)
 static int
 file_PyObject_Print(PyObject *op, PyFileObject *f, int flags)
 {
     int result;
-    PyFile_IncUseCount(f); // This could fail since the use count hasn't actually been incremented (which could lead to file dissapearing part way through?)
+    PyFile_IncUseCount(f);
     result = PyObject_Print(op, PyFile_AsFile(f), flags);
     PyFile_DecUseCount(f);
     return result;
 }
-/*
-// On Unix, fopen will succeed for directories.
-// In Python, there should be no file objects referring to
-// directories, so we need a check.
-
-static PyFileObject*
-dircheck(PyFileObject* f)
-{
-#if defined(HAVE_FSTAT) && defined(S_IFDIR) && defined(EISDIR)
-    struct stat buf;
-    if (f->f_fp == NULL)
-        return f;
-    if (fstat(fileno(f->f_fp), &buf) == 0 &&
-        S_ISDIR(buf.st_mode)) {
-        char *msg = strerror(EISDIR);
-        PyObject *exc = PyObject_CallFunction(PyExc_IOError, "(isO)",
-                                              EISDIR, msg, f->f_name);
-        PyErr_SetObject(PyExc_IOError, exc);
-        Py_XDECREF(exc);
-        return NULL;
-    }
-#endif
-    return f;
-}
-
-
-static PyObject *
-fill_file_fields(PyFileObject *f, FILE *fp, PyObject *name, char *mode,
-                 int (*close)(FILE *))
-{
-    assert(name != NULL);
-    assert(f != NULL);
-    assert(PyFile_Check(f));
-    assert(f->f_fp == NULL);
-
-    Py_DECREF(f->f_name);
-    Py_DECREF(f->f_mode);
-    Py_DECREF(f->f_encoding);
-    Py_DECREF(f->f_errors);
-
-    Py_INCREF(name);
-    f->f_name = name;
-
-    f->f_mode = PyString_FromString(mode);
-
-    f->f_close = close;
-    f->f_softspace = 0;
-    f->f_binary = strchr(mode,'b') != NULL;
-    f->f_buf = NULL;
-    f->f_univ_newline = (strchr(mode, 'U') != NULL);
-    f->f_newlinetypes = NEWLINE_UNKNOWN;
-    f->f_skipnextlf = 0;
-    Py_INCREF(Py_None);
-    f->f_encoding = Py_None;
-    Py_INCREF(Py_None);
-    f->f_errors = Py_None;
-    f->readable = f->writable = 0;
-    if (strchr(mode, 'r') != NULL || f->f_univ_newline)
-        f->readable = 1;
-    if (strchr(mode, 'w') != NULL || strchr(mode, 'a') != NULL)
-        f->writable = 1;
-    if (strchr(mode, '+') != NULL)
-        f->readable = f->writable = 1;
-
-    if (f->f_mode == NULL)
-        return NULL;
-    f->f_fp = fp;
-    f = dircheck(f);
-    return (PyObject *) f;
-}
-
-#if defined _MSC_VER && _MSC_VER >= 1400 && defined(__STDC_SECURE_LIB__)
-#define Py_VERIFY_WINNT
-// The CRT on windows compiled with Visual Studio 2005 and higher may
-// assert if given invalid mode strings.  This is all fine and well
-// in static languages like C where the mode string is typcially hard
-// coded.  But in Python, were we pass in the mode string from the user,
-// we need to verify it first manually
-
-static int _PyVerify_Mode_WINNT(const char *mode)
-{
-    // See if mode string is valid on Windows to avoid hard assertions
-    // remove leading spacese
-    int singles = 0;
-    int pairs = 0;
-    int encoding = 0;
-    const char *s, *c;
-
-    while(*mode == ' ') // strip initial spaces
-        ++mode;
-    if (!strchr("rwa", *mode)) // must start with one of these
-        return 0;
-    while (*++mode) {
-        if (*mode == ' ' || *mode == 'N') // ignore spaces and N
-            continue;
-        s = "+TD"; // each of this can appear only once
-        c = strchr(s, *mode);
-        if (c) {
-            ptrdiff_t idx = s-c;
-            if (singles & (1<<idx))
-                return 0;
-            singles |= (1<<idx);
-            continue;
-        }
-        s = "btcnSR"; // only one of each letter in the pairs allowed
-        c = strchr(s, *mode);
-        if (c) {
-            ptrdiff_t idx = (s-c)/2;
-            if (pairs & (1<<idx))
-                return 0;
-            pairs |= (1<<idx);
-            continue;
-        }
-        if (*mode == ',') {
-            encoding = 1;
-            break;
-        }
-        return 0; // found an invalid char
-    }
-
-    if (encoding) {
-        char *e[] = {"UTF-8", "UTF-16LE", "UNICODE"};
-        while (*mode == ' ')
-            ++mode;
-        // find 'ccs ='
-        if (strncmp(mode, "ccs", 3))
-            return 0;
-        mode += 3;
-        while (*mode == ' ')
-            ++mode;
-        if (*mode != '=')
-            return 0;
-        while (*mode == ' ')
-            ++mode;
-        for(encoding = 0; encoding<_countof(e); ++encoding) {
-            size_t l = strlen(e[encoding]);
-            if (!strncmp(mode, e[encoding], l)) {
-                mode += l; // found a valid encoding
-                break;
-            }
-        }
-        if (encoding == _countof(e))
-            return 0;
-    }
-    // skip trailing spaces
-    while (*mode == ' ')
-        ++mode;
-
-    return *mode == '\0'; // must be at the end of the string
-}
-#endif
-
-// check for known incorrect mode strings - problem is, platforms are
-// free to accept any mode characters they like and are supposed to
-// ignore stuff they don't understand... write or append mode with
-// universal newline support is expressly forbidden by PEP 278.
-// Additionally, remove the 'U' from the mode string as platforms
-// won't know what it is. Non-zero return signals an exception
-int
-_PyFile_SanitizeMode(char *mode)
-{
-    char *upos;
-    size_t len = strlen(mode);
-
-    if (!len) {
-        PyErr_SetString(PyExc_ValueError, "empty mode string");
-        return -1;
-    }
-
-    upos = strchr(mode, 'U');
-    if (upos) {
-        memmove(upos, upos+1, len-(upos-mode)); // incl null char
-
-        if (mode[0] == 'w' || mode[0] == 'a') {
-            PyErr_Format(PyExc_ValueError, "universal newline "
-                         "mode can only be used with modes "
-                         "starting with 'r'");
-            return -1;
-        }
-
-        if (mode[0] != 'r') {
-            memmove(mode+1, mode, strlen(mode)+1);
-            mode[0] = 'r';
-        }
-
-        if (!strchr(mode, 'b')) {
-            memmove(mode+2, mode+1, strlen(mode));
-            mode[1] = 'b';
-        }
-    } else if (mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') {
-        PyErr_Format(PyExc_ValueError, "mode string must begin with "
-                    "one of 'r', 'w', 'a' or 'U', not '%.200s'", mode);
-        return -1;
-    }
-#ifdef Py_VERIFY_WINNT
-    // additional checks on NT with visual studio 2005 and higher
-    if (!_PyVerify_Mode_WINNT(mode)) {
-        PyErr_Format(PyExc_ValueError, "Invalid mode ('%.50s')", mode);
-        return -1;
-    }
-#endif
-    return 0;
-}
-
-static PyObject *
-open_the_file(PyFileObject *f, char *name, char *mode)
-{
-    char *newmode;
-    assert(f != NULL);
-    assert(PyFile_Check(f));
-#ifdef MS_WINDOWS
-    // windows ignores the passed name in order to support Unicode
-    assert(f->f_name != NULL);
-#else
-    assert(name != NULL);
-#endif
-    assert(mode != NULL);
-    assert(f->f_fp == NULL);
-
-    // probably need to replace 'U' by 'rb'
-    newmode = PyMem_MALLOC(strlen(mode) + 3);
-    if (!newmode) {
-        PyErr_NoMemory();
-        return NULL;
-    }
-    strcpy(newmode, mode);
-
-    if (_PyFile_SanitizeMode(newmode)) {
-        f = NULL;
-        goto cleanup;
-    }
-
-    // rexec.py can't stop a user from getting the file() constructor --
-    // all they have to do is get *any* file object f, and then do
-    // type(f).  Here we prevent them from doing damage with it.
-    if (PyEval_GetRestricted()) {
-        PyErr_SetString(PyExc_IOError,
-        "file() constructor not accessible in restricted mode");
-        f = NULL;
-        goto cleanup;
-    }
-    errno = 0;
-
-#ifdef MS_WINDOWS
-    if (PyUnicode_Check(f->f_name)) {
-        PyObject *wmode;
-        wmode = PyUnicode_DecodeASCII(newmode, strlen(newmode), NULL);
-        if (f->f_name && wmode) {
-            FILE_BEGIN_ALLOW_THREADS(f)
-            // PyUnicode_AS_UNICODE OK without thread
-            // lock as it is a simple dereference.
-            f->f_fp = _wfopen(PyUnicode_AS_UNICODE(f->f_name),
-                              PyUnicode_AS_UNICODE(wmode));
-            FILE_END_ALLOW_THREADS(f)
-        }
-        Py_XDECREF(wmode);
-    }
-#endif
-    if (NULL == f->f_fp && NULL != name) {
-        FILE_BEGIN_ALLOW_THREADS(f)
-        f->f_fp = fopen(name, newmode);
-        FILE_END_ALLOW_THREADS(f)
-    }
-
-    if (f->f_fp == NULL) {
-#if defined  _MSC_VER && (_MSC_VER < 1400 || !defined(__STDC_SECURE_LIB__))
-        // MSVC 6 (Microsoft) leaves errno at 0 for bad mode strings,
-        // across all Windows flavors.  When it sets EINVAL varies
-        // across Windows flavors, the exact conditions aren't
-        // documented, and the answer lies in the OS's implementation
-        // of Win32's CreateFile function (whose source is secret).
-        // Seems the best we can do is map EINVAL to ENOENT.
-        // Starting with Visual Studio .NET 2005, EINVAL is correctly
-        // set by our CRT error handler (set in exceptions.c.)
-
-        if (errno == 0)         // bad mode string
-            errno = EINVAL;
-        else if (errno == EINVAL) // unknown, but not a mode string
-            errno = ENOENT;
-#endif
-        // EINVAL is returned when an invalid filename or
-        // an invalid mode is supplied.
-        if (errno == EINVAL) {
-            PyObject *v;
-            char message[100];
-            PyOS_snprintf(message, 100,
-                "invalid mode ('%.50s') or filename", mode);
-            v = Py_BuildValue("(isO)", errno, message, f->f_name);
-            if (v != NULL) {
-                PyErr_SetObject(PyExc_IOError, v);
-                Py_DECREF(v);
-            }
-        }
-        else
-            PyErr_SetFromErrnoWithFilenameObject(PyExc_IOError, f->f_name);
-        f = NULL;
-    }
-    if (f != NULL)
-        f = dircheck(f);
-
-cleanup:
-    PyMem_FREE(newmode);
-
-    return (PyObject *)f;
-}
 
 static PyObject *
 close_the_file(PyFileObject *f)
-{
+{ // since we aren't dealling with the PyInc/DecUse we don't need to check the unlockedcount, when that is implemented we will.
+	jobject jobj;
+	if (f->ob_refcnt > 0) {
+		PyErr_SetString(PyExc_IOError, "close() called during concurrent operation on the same file object.");
+	}
+	jobj = JyNI_JythonPyObject_FromPyObject(f);
+	env(NULL);
+	(*env)->CallObjectMethod(env, jobj, pyFile_file_close);
+	Py_RETURN_NONE;
+}
+/*	CPython Implementation:
     int sts = 0;
     int (*local_close)(FILE *);
     FILE *local_fp = f->f_fp;
@@ -595,7 +304,7 @@ PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
 	        return NULL;
 	}
 	return PyFile_FromString(name, mode);
-}/*
+}/* CPython Implementation:
     PyFileObject *f;
     PyObject *o_name;
 
@@ -633,7 +342,7 @@ PyFile_FromString(char *name, char *mode)
 	jfile = (*env)->NewObject(env, pyFileClass, pyFile_CSS, jname, jmode, (jint)bufSize);
 	pfile = JyNI_PyObject_FromJythonPyObject(jfile);
 	return pfile;
-}/*
+}/* CPython Implementation:
     PyFileObject *f;
 
     f = (PyFileObject *)PyFile_FromFile((FILE *)NULL, name, mode, NULL);
@@ -649,9 +358,10 @@ PyFile_FromString(char *name, char *mode)
 void
 PyFile_SetBufSize(PyObject *f, int bufsize)
 {
-	// I don't think this needs to do anything since the buffer size is set in java on file creation and this should only be used immediately after creating a file.
+	// I don't think this needs to do anything since the buffer size is set in java on file creation and this should only be used after creating a file.
 	// There also doesn't appear to be an obvious way to set buffer size in java after creating the file.
 }/*
+	CPython Implementation:
     PyFileObject *file = (PyFileObject *)f;
     if (bufsize >= 0) {
         int type;
@@ -687,10 +397,11 @@ PyFile_SetBufSize(PyObject *f, int bufsize)
 #endif // !HAVE_SETVBUF
     }
 }
+*/
 
 // Set the encoding used to output Unicode strings.
 // Return 1 on success, 0 on failure.
-*/
+
 int
 PyFile_SetEncoding(PyObject *f, const char *enc)
 {
@@ -710,14 +421,11 @@ PyFile_SetEncodingAndErrors(PyObject *f, const char *enc, char* err)
 	jobj = JyNI_JythonPyObject_FromPyObject(f);
 	env(-1);
 	jenc = (*env)->NewStringUTF(env, enc);
-//	if(err==NULL){ // I'm not sure if this is needed, what should errors/encoding be set to if NULL is the argument?
-//		jerr = (*env)->NewStringUTF(env, "");
-//	}
 	jerr = (*env)->NewStringUTF(env, err);
 	(*env)->CallVoidMethod(env, jobj, pyFile_setEncoding, jenc, jerr);
 	return 1;
 }
-/*
+/*	CPython Implementation:
     PyFileObject *file = (PyFileObject*)f;
     PyObject *str, *oerrors;
 
@@ -774,13 +482,12 @@ static void drop_readahead(PyFileObject *);
 static void
 file_dealloc(PyFileObject *f)
 {
-	// JyNI implementation
 	PyObject *ret;
 	JyNIDebugOp(JY_NATIVE_FINALIZE, f, -1);
-	// We will revisit that:
+	// We will revisit this:
 	//if (f->weakreflist != NULL)
 	//    PyObject_ClearWeakRefs((PyObject *) f);
-	ret = file_close(f); // since we aren't dealling with the PyInc/DecUse we don't need to check the ref count for that. TODO we should check the ob_refcount before deallocating everything though.
+	ret = close_the_file(f);
 	if (!ret) {
 	    PySys_WriteStderr("close failed in file object destructor:\n");
 	    PyErr_Print();
@@ -1707,11 +1414,22 @@ PyFile_GetLine(PyObject *f, int n)
 	// JyNI implementation
 	jobject jobj, jres;
 	PyObject *res;
-	jobj = JyNI_JythonPyObject_FromPyObject(f);
-	env(NULL);
-	jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, n);
-	res = JyNI_PyObject_FromJythonPyObject(jres);
-	return res;
+	if (f == NULL) {
+		PyErr_BadInternalCall();
+		return NULL;
+	}
+	if (PyFile_Check(f)) {
+		jobj = JyNI_JythonPyObject_FromPyObject(f);
+		env(NULL);
+		jres = (*env)->CallObjectMethod(env, jobj, pyFile_file_readline, n);
+		res = JyNI_PyObject_FromJythonPyObject(jres);
+		return res;
+	} else {
+		jputs("JyNI Warning: PyFile_GetLine with non PyFile not yet supported, returning empty string");
+		// The CPython code may work fine for this section, but I don't have the confidence to put it here, it is complicated and may involve unicode
+		return PyString_FromString("");
+	}
+
 	/*
 	// Python Code:
     PyObject *result;
@@ -2318,7 +2036,7 @@ get_closed(PyFileObject *f, void *closure)
 	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
 	env(NULL);
 	jboolean jclosed = (*env)->CallBooleanMethod(env, jfile, pyFile_getClosed);
-	int cClosed = (int)jclosed;//TODO may break since casting from bool to int, who knows!
+	int cClosed = (int)jclosed;
 	return PyBool_FromInt(cClosed);
 }
 static PyObject *
@@ -2471,13 +2189,35 @@ file_iternext(PyFileObject *f)
 static PyObject *
 file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+	// This implementation was based on PySet, in some places the code from there is shown for comparison
+	register PyFileObject *fo = NULL;
+
+	fo = (PySetObject *)type->tp_alloc(type, 0);
+	if (fo == NULL)
+		return NULL;
+	/* tp_alloc has already zeroed the structure, TODO: assert contents are 0*/
+	// PySet: assert(so->fill == 0 && so->used == 0);
+	// PyFile: I'm not sure what needs to be checked here
+
+	jobject jobj;
+	JyObject* srcJy;
 	env(NULL);
-	jobject jfile = (*env)->NewObject(env, pyFileClass, pyFile_Constructor);
-	PyObject* pfile = JyNI_PyObject_FromJythonPyObject(jfile);
-	return pfile;
+	// PySet: jobj = (*env)->NewObject(env, pySetClass, pySet_fromIterableConstructor, JyNI_JythonPyObject_FromPyObject(iterable));
+	// I think no args/kwds are needed in pyfile case:
+	jobj = (*env)->NewObject(env, pyFileClass, pyFile_Constructor);
+	srcJy = AS_JY((PyObject*) fo);
+	srcJy->jy = (*env)->NewWeakGlobalRef(env, jobj);
+	srcJy->flags |= JY_INITIALIZED_FLAG_MASK;
+	/*
+	 * Todo:
+	 * - Maybe call JyNI_GC_EnsureHeadObject here.
+	 * - Maybe call JyNI_GC_Track_CStub
+	 */
+	return (PyObject *)fo;
 }
+
 /*
-	// Basically call constructor PyFile() and return it as a PyObj, file_init should then call it's file___init__ method somehow?
+	CPython Implementation:
     PyObject *self;
     static PyObject *not_yet_string;
 
@@ -2510,20 +2250,10 @@ file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static int
 file_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-	// This possibly needs to use the commented out code and just implement fill_file_fields etc
-	// We could also just parse out the arguemnts and hope
 	jobject jfile = JyNI_JythonPyObject_FromPyObject(self);
-	jobject jargs = JyNI_JythonPyObject_FromPyObject(args);
-	jobject jkwds = JyNI_JythonPyObject_FromPyObject(kwds); //kwds should be converted to strings somehow?
-	env(-1);
-	(*env)->CallVoidMethod(env, jfile, pyFile_file___init__, jargs, jkwds);
-	PyObject *pfile = JyNI_PyObject_FromJythonPyObject(jfile);
-	char *tmp = PyString_AsString(pfile->ob_type->tp_repr(pfile)); // This allows gdb to see the result of file_repr which tells me the name/mode change hasn't worked
-	Py_DECREF(self);
-	self = pfile;
-	return 0;
+	return JyNI_PyObject_Call(jfile, args, kwds);
 }
-/*
+/*	CPython Implementation:
     PyFileObject *foself = (PyFileObject *)self;
     int ret = 0;
     static char *kwlist[] = {"name", "mode", "buffering", 0};
@@ -2644,8 +2374,8 @@ PyTypeObject PyFile_Type = {
     0,        // tp_weaklistoffset
 	(getiterfunc)file_self,                     // tp_iter
 	(iternextfunc)file_iternext,                // tp_iternext
-    0,                               // tp_methods
-    0,                            // tp_members
+    0,                                          // tp_methods Not required as PyObject_GenericGetAttr calls into jython
+    0,                                          // tp_members Not required as PyObject_GenericGetAttr calls into jython
 	file_getsetlist,                            // tp_getset
     0,                                          // tp_base
     0,                                          // tp_dict
@@ -2659,7 +2389,7 @@ PyTypeObject PyFile_Type = {
 };
 
 
-/*
+/* CPython Implementation:
 PyTypeObject PyFile_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "file",
@@ -2710,19 +2440,17 @@ PyFile_SoftSpace(PyObject *f, int newflag)
 {
     long oldflag = 0;
     if (f == NULL) {
-        // Do nothing
+        // Do nothing (and return 0)
     }
     else if (PyFile_Check(f)) {
-    	jobject jobj = JyNI_JythonPyObject_FromPyObject((PyObject *)f);
+    	jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
     	env(NULL);
     	jobject jres = (*env)->CallObjectMethod(env, jobj, pyFile_getSoftspace);
     	PyObject* thing = JyNI_PyObject_FromJythonPyObject(jres);
         oldflag = PyInt_AsLong(thing);
         set_softspace((PyFileObject *)f, Py_BuildValue("i", newflag));
-        //jobject JyPyNewFlag = JyNI_JythonPyObject_FromPyObject( Py_BuildValue("i", newflag) );
-        //(*env)->CallVoidMethod(env, jobj, pyFile_setSoftspace, JyPyNewFlag);
     }
-    else {
+    else { // I think this code will work since it is generalised, but I'm not 100% sure
         PyObject *v;
         v = PyObject_GetAttrString(f, "softspace");
         if (v == NULL)
@@ -2751,7 +2479,7 @@ static PyObject *PyFile_GetEncoding(PyObject *f){
 	cstr_decl(cEnc);
 	env(NULL);
 	jobject jfile = JyNI_JythonPyObject_FromPyObject(f);
-	jstring jEnc = (*env)->GetObjectField(env, jfile, pyFile_encodingField); // TODO JNI
+	jstring jEnc = (*env)->GetObjectField(env, jfile, pyFile_encodingField);
 	if(jEnc){
 		cstr_from_jstring(cEnc, jEnc);
 		return PyString_FromString(cEnc);
@@ -2843,16 +2571,30 @@ PyFile_WriteObject(PyObject *v, PyObject *f, int flags)
 int
 PyFile_WriteString(const char *s, PyObject *f)
 {
-	if (f == NULL) { // TODO throw python error here?
+	if (f == NULL) {
+		/* Should be caused by a pre-existing error */
+		if (!PyErr_Occurred()){
+			PyErr_SetString(PyExc_SystemError, "null file for PyFile_WriteString");
+		}
 		return -1;
-	} else {
+	} else if (PyFile_Check(f)) {
 		jobject jobj = JyNI_JythonPyObject_FromPyObject(f);
 		env(NULL);
 		(*env)->CallObjectMethod(env, jobj, pyFile_write, (*env)->NewStringUTF(env, s));
-		Py_RETURN_NONE; // TODO JNI exception handling?
-	}
+		Py_RETURN_NONE; // TODO JNI exception handling? what if pyFile_write throws an exception?
+	} else if (!PyErr_Occurred()) {
+		PyObject *v = PyString_FromString(s);
+		int err;
+		if (v == NULL)
+			return -1;
+		err = PyFile_WriteObject(v, f, Py_PRINT_RAW);
+		Py_DECREF(v);
+		return err;
+	} else
+	return -1;
 
-    /*if (f == NULL) {
+    /* CPython Implementation:
+    if (f == NULL) {
         // Should be caused by a pre-existing error
         if (!PyErr_Occurred())
             PyErr_SetString(PyExc_SystemError,
@@ -2889,61 +2631,57 @@ PyFile_WriteString(const char *s, PyObject *f)
 // object's fileno() method is called if it exists; the method must return
 // an integer or long integer, which is returned as the file descriptor value.
 // -1 is returned on failure.
+// JyNI Note: PyFile is treated differently since Jython return's an odd fileno()
 
-// TODO I think that the reason this doesn't work for files because fileno() returns the wrong thing
 int PyObject_AsFileDescriptor(PyObject *o)
 {
-	jputs("JyNI warning: PyObject_AsFileDescriptor not yet implemented.");
-	return -1;
+	int fd;
+	jobject jfile;
+	PyObject *meth;
+
+	if (PyInt_Check(o)) {
+		fd = PyInt_AsLong(o);
+	}
+	else if (PyLong_Check(o)) {
+		fd = PyLong_AsLong(o);
+	}
+	else if(PyFile_Check(o)){
+		env(-1);
+		jfile = JyNI_JythonPyObject_FromPyObject(o);
+		fd = (*env)->CallStaticIntMethod(env, JyNIClass, JyNI_PyFile_fd, jfile);
+	}
+	else if ((meth = PyObject_GetAttrString(o, "fileno")) != NULL)
+	{
+		PyObject *fno = PyEval_CallObject(meth, NULL);
+		Py_DECREF(meth);
+		if (fno == NULL)
+			return -1;
+
+		if (PyInt_Check(fno)) {
+			fd = PyInt_AsLong(fno);
+			Py_DECREF(fno);
+		}
+		else if (PyLong_Check(fno)) {
+			fd = PyLong_AsLong(fno);
+			Py_DECREF(fno);
+		}
+		else {
+			PyErr_SetString(PyExc_TypeError, "fileno() returned a non-integer");
+			Py_DECREF(fno);
+			return -1;
+		}
+	}
+	else {
+		PyErr_SetString(PyExc_TypeError, "argument must be an int, or have a fileno() method.");
+		return -1;
+	}
+
+	if (fd < 0) {
+		PyErr_Format(PyExc_ValueError, "file descriptor cannot be a negative integer (%i)", fd);
+		return -1;
+	}
+	return fd;
 }
-
-/*
-    int fd;
-    PyObject *meth;
-
-    if (PyInt_Check(o)) {
-        fd = PyInt_AsLong(o);
-    }
-    else if (PyLong_Check(o)) {
-        fd = PyLong_AsLong(o);
-    }
-    else if ((meth = PyObject_GetAttrString(o, "fileno")) != NULL)
-    {
-        PyObject *fno = PyEval_CallObject(meth, NULL);
-        Py_DECREF(meth);
-        if (fno == NULL)
-            return -1;
-
-        if (PyInt_Check(fno)) {
-            fd = PyInt_AsLong(fno);
-            Py_DECREF(fno);
-        }
-        else if (PyLong_Check(fno)) {
-            fd = PyLong_AsLong(fno);
-            Py_DECREF(fno);
-        }
-        else {
-            PyErr_SetString(PyExc_TypeError,
-                            "fileno() returned a non-integer");
-            Py_DECREF(fno);
-            return -1;
-        }
-    }
-    else {
-        PyErr_SetString(PyExc_TypeError,
-                        "argument must be an int, or have a fileno() method.");
-        return -1;
-    }
-
-    if (fd < 0) {
-        PyErr_Format(PyExc_ValueError,
-                     "file descriptor cannot be a negative integer (%i)",
-                     fd);
-        return -1;
-    }
-    return fd;
-}
-*/
 
 
 /* From here on we need access to the real fgets and fread */
@@ -2964,7 +2702,7 @@ int PyObject_AsFileDescriptor(PyObject *o)
  Note that we need no error handling: fgets() treats error and eof
  identically.
  */
-
+/*
 char *
 Py_UniversalNewlineFgets(char *buf, int n, FILE *stream, PyObject *fobj)
 {
@@ -3124,8 +2862,8 @@ Py_UniversalNewlineFread(char *buf, size_t n,
     f->f_skipnextlf = skipnextlf;
     return dst - buf;
 }
-
+*/
 #ifdef __cplusplus
 }
 #endif
-*/
+
